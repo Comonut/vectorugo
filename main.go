@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/comonut/vectorugo/store"
+	"github.com/Comonut/vectorugo/store"
 )
 
 func main() {
