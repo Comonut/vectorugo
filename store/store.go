@@ -26,3 +26,11 @@ func Random(id string, size int) *Vector {
 	}
 	return &v
 }
+
+func (v *Vector) Sum() float64 {
+	var sum = 0.0
+	for _, element := range v.values {
+		sum += element
+	}
+	return sum
+}

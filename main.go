@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
-	fmt.Print(*store.Random("", 32))
+	var onesVector = store.Ones("", 32)
+	fmt.Print(onesVector.Sum())
 
 }
