@@ -13,7 +13,7 @@ func Init() {
 	var err = http.ListenAndServe(":8080", nil)
 
 	if err != nil {
-		fmt.Printf(err.Error())
+		fmt.Print(err.Error())
 	}
 }
 
