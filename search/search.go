@@ -19,8 +19,8 @@ func EuclideanDistance(x *Vector, y *Vector) float64 {
 
 	i := 0
 	for i < len(x.Values) {
-		left := &x.Values[i]
-		right := &y.Values[i]
+		left := &x.values[i]
+		right := &y.values[i]
 		dist += math.Pow((*left - *right), 2)
 		i++
 	}
