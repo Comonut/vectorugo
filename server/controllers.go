@@ -6,20 +6,20 @@ import (
 )
 
 func Init() {
-	http.HandleFunc("/get", getById)
-	http.HandleFunc("/set", setById)
-	http.HandleFunc("/search", searchById)
+	http.HandleFunc("/get", getByID)
+	http.HandleFunc("/set", setByID)
+	http.HandleFunc("/search", searchByID)
 	http.ListenAndServe(":8080", nil)
 }
 
-func getById(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Recieved get with request\n%s!", r)
+func getByID(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Recieved get with request\n!", *r)
 }
 
-func setById(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Recieved set with request\n%s", r)
+func setByID(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Recieved set with request\n", *r)
 }
 
-func searchById(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Recieved search with request\n%s", r)
+func searchByID(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Recieved search with request\n", *r)
 }
