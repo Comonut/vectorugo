@@ -9,7 +9,12 @@ func Init() {
 	http.HandleFunc("/get", getByID)
 	http.HandleFunc("/set", setByID)
 	http.HandleFunc("/search", searchByID)
-	http.ListenAndServe(":8080", nil)
+
+	var err = http.ListenAndServe(":8080", nil)
+
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
 }
 
 func getByID(w http.ResponseWriter, r *http.Request) {
