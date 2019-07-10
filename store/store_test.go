@@ -24,8 +24,9 @@ func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
 
-	set(s, ones.id, ones)
-	set(s, zeros.id, zeros)
+	if set(s, ones.id, ones) != nil || set(s, zeros.id, zeros) != nil {
+		t.Error("error setting values")
+	}
 
 	var val, err = get(s, ones.id)
 	if err != nil || val != ones {
