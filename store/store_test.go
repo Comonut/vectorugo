@@ -36,7 +36,7 @@ func testStore(s Store, t *testing.T) {
 	if del(s, ones.id) != nil {
 		t.Error("error deleting from store")
 	}
-	val, err = get(s, ones.id)
+	_, err = get(s, ones.id)
 	if err == nil {
 		t.Error("can get value that should have been deleted")
 	}
