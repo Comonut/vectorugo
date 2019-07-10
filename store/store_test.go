@@ -23,18 +23,18 @@ func del(s Store, id string) error {
 func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
-	var randoms = Random("rand", 32)
 
 	set(s, ones.id, ones)
 	set(s, zeros.id, zeros)
-	set(s, randoms.id, randoms)
 
 	var val, err = get(s, ones.id)
 	if err != nil || val != ones {
 		t.Error("error getting values")
 	}
 
-	del(s, ones.id)
+	if del(s, ones.id) != nil {
+		t.Error("error deleting from store")
+	}
 	val, err = get(s, ones.id)
 	if err == nil {
 		t.Error("can get value that should have been deleted")
