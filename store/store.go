@@ -1,6 +1,8 @@
 package store
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 type Vector struct {
 	id     string
@@ -33,4 +35,11 @@ func (v *Vector) Sum() float64 {
 		sum += element
 	}
 	return sum
+}
+
+type Store interface {
+	Get(id string) (*Vector, error)
+	Set(id string, vector *Vector) error
+	Delete(id string) error
+	KNN(vector *Vector, k int) ([]*Vector, error)
 }
