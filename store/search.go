@@ -50,7 +50,5 @@ func GetNeigbors(a []float64, k int) []float64 {
 		return a[i] < a[j]
 	})
 
-	result := make([]float64, k)
-	result = append(a[0:k])
-	return result
+	return a[0:k]
 }
