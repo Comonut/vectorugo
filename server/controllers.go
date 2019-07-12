@@ -6,8 +6,7 @@ import (
 )
 
 func Init() {
-	http.HandleFunc("/get", getByID)
-	http.HandleFunc("/set", setByID)
+	http.HandleFunc("/vectors", handleVectors)
 	http.HandleFunc("/search", searchByID)
 
 	var err = http.ListenAndServe(":8080", nil)
@@ -17,12 +16,17 @@ func Init() {
 	}
 }
 
-func getByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Recieved get with request\n!", *r)
-}
+func handleVectors(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		fmt.Fprint(w, "GET")
+	case "POST":
+		fmt.Fprint(w, "POST")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprint(w, "ERROR")
 
-func setByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Recieved set with request\n", *r)
+	}
 }
 
 func searchByID(w http.ResponseWriter, r *http.Request) {
