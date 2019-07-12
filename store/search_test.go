@@ -7,12 +7,12 @@ import (
 
 func TestSearch(t *testing.T) {
 	//train vectors
-	var trainVector1 = Ones("", 32)
-	var trainVector2 = Zeros("", 32)
-	var trainVector3 = Random("", 32)
-	var trainVector4 = Random("", 32)
+	var trainVector1 = Ones("", 5)
+	var trainVector2 = Zeros("", 5)
+	var trainVector3 = Random("", 5)
+	var trainVector4 = Random("", 5)
 	//test vector
-	var testVector = Random("", 32)
+	var testVector = Random("", 5)
 
 	vectorMap := map[string]*Vector{
 		"v1": trainVector1,
@@ -25,8 +25,12 @@ func TestSearch(t *testing.T) {
 	fmt.Printf("Distances: %v", a)
 	fmt.Println()
 
-	b := GetNeigbors(a, 2)
-	fmt.Printf("Neighbors: %v", b)
+	b := GetNeigbors(vectorMap, a, 2)
+	fmt.Printf("Test vector: %v %v", testVector.Id, testVector.Values)
 	fmt.Println()
-}
 
+	for k, v := range b{
+		fmt.Printf("Neighbors: %v %v", k, v)
+		fmt.Println()
+	}
+}
