@@ -44,13 +44,13 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			fmt.Fprint(w, "Value not present in store: ")
 			return
 		}
+		err = json.NewEncoder(w).Encode(value)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error serializing response vector")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(value)
 
 	case "POST":
 		b, err := ioutil.ReadAll(r.Body)
@@ -61,7 +61,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			return
 		}
 		var v map[string][]float64
-		fmt.Print(b)
+
 		err = json.Unmarshal(b, &v)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -69,7 +69,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			return
 		}
 		for k, v := range v {
-			err = config.store.Set(k, &store.Vector{k, v})
+			err = config.store.Set(k, &store.Vector{ID: k, Values: v})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, "Error writing to store:	", err)

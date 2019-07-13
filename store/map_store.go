@@ -5,6 +5,7 @@ import "errors"
 //SimpleMapStore  implements the Store interface using a Go map
 type SimpleMapStore map[string]*Vector
 
+//NewSimpleMapStore returns a new map store
 func NewSimpleMapStore() SimpleMapStore {
 	return make(map[string]*Vector)
 }
