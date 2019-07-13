@@ -24,25 +24,26 @@ func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
 
-	if set(s, ones.Id, ones) != nil || set(s, zeros.Id, zeros) != nil {
+
+	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil {
 		t.Error("error setting values")
 	}
 
-	var val, err = get(s, ones.Id)
+	var val, err = get(s, ones.ID)
 	if err != nil || val != ones {
 		t.Error("error getting values")
 	}
 
-	if del(s, ones.Id) != nil {
+	if del(s, ones.ID) != nil {
 		t.Error("error deleting from store")
 	}
-	_, err = get(s, ones.Id)
+	_, err = get(s, ones.ID)
 	if err == nil {
 		t.Error("can get value that should have been deleted")
 	}
 }
 
 func TestSimpleMapStore(t *testing.T) {
-	var s = newSimpleMapStore()
+	var s = NewSimpleMapStore()
 	testStore(&s, t)
 }
