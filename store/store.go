@@ -6,8 +6,8 @@ import (
 
 //Vector is the main storage unit
 type Vector struct {
-	id     string
-	values []float64
+	ID     string
+	Values []float64
 }
 
 //Zeros will return a Vector where all the values are equal to 0.0
@@ -19,7 +19,7 @@ func Zeros(id string, size int) *Vector {
 func Ones(id string, size int) *Vector {
 	var v = Vector{id, make([]float64, size)}
 	for q := 0; q < size; q++ {
-		v.values[q] = 1
+		v.Values[q] = 1
 	}
 	return &v
 }
@@ -28,7 +28,7 @@ func Ones(id string, size int) *Vector {
 func Random(id string, size int) *Vector {
 	var v = Vector{id, make([]float64, size)}
 	for q := 0; q < size; q++ {
-		v.values[q] = rand.Float64()
+		v.Values[q] = rand.Float64()
 	}
 	return &v
 }
@@ -36,7 +36,7 @@ func Random(id string, size int) *Vector {
 //Sum of the vector elements
 func (v *Vector) Sum() float64 {
 	var sum = 0.0
-	for _, element := range v.values {
+	for _, element := range v.Values {
 		sum += element
 	}
 	return sum
