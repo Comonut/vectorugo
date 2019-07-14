@@ -123,8 +123,12 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 			fmt.Fprint(w, "Error getting search results")
 			return
 		}
+		response := make([]SearchResponseModel, len(*results))
+		for i, result := range *results {
+			response[i] = SearchResponseModel{ID: result.Target.ID, Distance: result.Distance}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(results)
+		err = json.NewEncoder(w).Encode(response)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error serializing response vector")
@@ -133,7 +137,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(w, "Invalid request method - Only GET and POST are supported")
+		fmt.Fprint(w, "Invalid request method - Only GET is supported")
 
 	}
 }

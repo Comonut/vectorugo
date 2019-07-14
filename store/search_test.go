@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -23,8 +22,20 @@ func TestSearch(t *testing.T) {
 	}
 
 	neighbors := MapStoreKNN(&s, v1, 5)
-	for i := range *neighbors {
-		fmt.Printf("Neighbors: %v", (*neighbors)[i])
-		fmt.Println()
+	if (*neighbors)[0].Target != v1 && (*neighbors)[0].Target != v2 {
+		t.Error("wrong first value")
 	}
+	if (*neighbors)[1].Target != v1 && (*neighbors)[1].Target != v2 {
+		t.Error("wrong second value")
+	}
+	if (*neighbors)[2].Target != v3 {
+		t.Error("wrong third value")
+	}
+	if (*neighbors)[3].Target != v5 {
+		t.Error("wrong fourth value")
+	}
+	if (*neighbors)[4].Target != v4 {
+		t.Error("wrong fifth value")
+	}
+
 }
