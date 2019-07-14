@@ -55,3 +55,33 @@ func TestSetGet(t *testing.T) {
 	}
 
 }
+
+func TestSearchController(t *testing.T) {
+	go Init()
+	time.Sleep(2 * time.Second)
+
+	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" : [0, 0.0, 1, 3.14]}")))
+	if err != nil || resp.StatusCode != 200 {
+		t.Errorf("Error setting values %d", resp.StatusCode)
+	}
+
+	resp, err = http.Get("http://localhost:8080/search?id=v1&k=1")
+	if err != nil || resp.StatusCode != 200 {
+		t.Errorf("Error getting values %d", resp.StatusCode)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		t.Error("could not read response")
+	}
+	var v []SearchResponseModel
+	if json.Unmarshal(b, &v) != nil {
+		t.Error("could not parse response from get")
+	}
+
+	if v[0].ID != "v1" || v[0].Distance != 0 {
+		t.Error("wrong result")
+	}
+
+}
