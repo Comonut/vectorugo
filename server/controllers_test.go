@@ -11,11 +11,15 @@ import (
 	"github.com/Comonut/vectorugo/store"
 )
 
-func TestSetGet(t *testing.T) {
-
+func TestMain(t *testing.T) {
 	go Init()
 	time.Sleep(2 * time.Second)
 
+	testSetGet(t)
+	testSearchController(t)
+}
+
+func testSetGet(t *testing.T) {
 	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" asdasd: [0, 0.0, 1, 3.14]}")))
 	if err != nil || resp.StatusCode != 400 {
 		t.Errorf("Expected bad request for malformed json")
@@ -56,10 +60,7 @@ func TestSetGet(t *testing.T) {
 
 }
 
-func TestSearchController(t *testing.T) {
-	go Init()
-	time.Sleep(2 * time.Second)
-
+func testSearchController(t *testing.T) {
 	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" : [0, 0.0, 1, 3.14]}")))
 	if err != nil || resp.StatusCode != 200 {
 		t.Errorf("Error setting values %d", resp.StatusCode)

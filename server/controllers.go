@@ -137,7 +137,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(w, "Invalid request method - Only GET and POST are supported")
+		fmt.Fprint(w, "Invalid request method - Only GET is supported")
 
 	}
 }
