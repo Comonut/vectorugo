@@ -3,7 +3,6 @@ package store
 import (
 	"math"
 	"sort"
-	"strings"
 )
 
 /**
@@ -25,58 +24,38 @@ func EuclideanDistance(x *Vector, y *Vector) float64 {
 }
 
 /**
-* LabelVectors
-* Iterate through map of vectors, determine Euclidean Distance between current vector and
-* test vector, return array with distances
+	* Return structure for the kNN algorithm
+	* holding the string as key, the vector for corresponding key and the distance
  */
-func LabelVectors(m SimpleMapStore, test *Vector) map[string]float64 {
-	a := make(map[string]float64)
-
-	for i, v := range m {
-		a[i] = EuclideanDistance(v, test)
-	}
-
-	return a
+type Distance struct {
+	Key      string    //Vector ID
+	Values   []float64 //Vector Values
+	Distance float64   //Distance
 }
 
 /**
-* Return structure for the kNN algorithm
-* holding the string as key and distance as value
+	* KNN
+	* take vector map, test vector and number of neighbors
+	* return array with closest k neighbors containing Id, Vectro Values and Distance for each neighbor
  */
-type Kv struct {
-	Key   string  //string ID
-	Value float64 //vector distance
-}
+func KNN(storeVectors map[string]*Vector, testVector *Vector, k int) []Distance {
+	sortedDistances := make([]Distance, len(storeVectors))
+	var currentVector Distance
+	counter := 0
 
-/**
-* GetNeigbors
-* Sort the distance and determine nearest neighbors based on the k-th minimum distance.
- */
-func GetNeigbors(m map[string]*Vector, a map[string]float64, k int) map[string]*Vector {
-	var sortedStructs []Kv
-	finalResult := make(map[string]*Vector)
-
-	//array with (id, distance) pairs
-	for k, v := range a {
-		sortedStructs = append(sortedStructs, Kv{k, v})
+	//loop through map, calculate distance for each vector, append result in return array
+	for _, v := range storeVectors{
+		currentVector.Key = v.Id
+		currentVector.Values = v.Values
+		currentVector.Distance = EuclideanDistance(v, testVector)
+		sortedDistances[counter] = currentVector
+		counter++
 	}
 
 	//sort array by distance in incrementing order
-	sort.Slice(sortedStructs, func(i, j int) bool {
-		return sortedStructs[i].Value < sortedStructs[j].Value
+	sort.Slice(sortedDistances, func(i, j int) bool {
+		return sortedDistances[i].Distance < sortedDistances[j].Distance
 	})
 
-	//interate over map with vectors
-	for key, v := range m {
-		//for each entry check if it exists in the sorted array up to the number of neighbors we look for
-		for j := range sortedStructs[0:k] {
-			//if entry found, add it to the finalResult map and exit current iteration
-			if strings.Compare(key, sortedStructs[j].Key) == 0 {
-				//jackpot
-				finalResult[sortedStructs[j].Key] = v
-				break
-			}
-		}
-	}
-	return finalResult
+	return sortedDistances[0:k]
 }
