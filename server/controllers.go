@@ -81,13 +81,13 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 
 	case "DELETE":
 		key, ok := r.URL.Query()["id"]
-		if !ok || len(key[0] <= 0){
+		if !ok || len(key[0]) <= 0{
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Request param 'id' is missing")
 			return
 		}
 
-		value, err := config.store.Delete(key[0])
+		err := config.store.Delete(key[0])
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, "Value not present in store: ")
