@@ -24,29 +24,27 @@ func EuclideanDistance(x *Vector, y *Vector) float64 {
 }
 
 /**
-	* Return structure for the kNN algorithm
-	* holding the string as key, the vector for corresponding key and the distance
+* Return structure for the kNN algorithm
+* holding the string as key, the vector for corresponding key and the distance
  */
 type Distance struct {
-	Key      string    //Vector ID
-	Values   []float64 //Vector Values
-	Distance float64   //Distance
+	Target   *Vector
+	Distance float64 //Distance
 }
 
 /**
-	* KNN
-	* take vector map, test vector and number of neighbors
-	* return array with closest k neighbors containing Id, Vectro Values and Distance for each neighbor
+* KNN
+* take vector map, test vector and number of neighbors
+* return array with closest k neighbors containing Id, Vectro Values and Distance for each neighbor
  */
-func KNN(storeVectors map[string]*Vector, testVector *Vector, k int) []Distance {
-	sortedDistances := make([]Distance, len(storeVectors))
+func MapStoreKNN(storeVectors *SimpleMapStore, testVector *Vector, k int) *[]Distance {
+	sortedDistances := make([]Distance, len(*storeVectors))
 	var currentVector Distance
 	counter := 0
 
 	//loop through map, calculate distance for each vector, append result in return array
-	for _, v := range storeVectors{
-		currentVector.Key = v.Id
-		currentVector.Values = v.Values
+	for _, v := range *storeVectors {
+		currentVector.Target = v
 		currentVector.Distance = EuclideanDistance(v, testVector)
 		sortedDistances[counter] = currentVector
 		counter++
@@ -57,5 +55,6 @@ func KNN(storeVectors map[string]*Vector, testVector *Vector, k int) []Distance 
 		return sortedDistances[i].Distance < sortedDistances[j].Distance
 	})
 
-	return sortedDistances[0:k]
+	sortedDistances = sortedDistances[:k]
+	return &sortedDistances
 }

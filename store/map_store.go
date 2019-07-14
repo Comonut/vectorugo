@@ -33,6 +33,6 @@ func (s *SimpleMapStore) Delete(id string) error {
 
 //KNN returns the K nearest neighbours to a given vector
 //This vector does not have to be inside the store.
-func (s *SimpleMapStore) KNN(vector *Vector, k int) ([]*Vector, error) {
-	return nil, nil
+func (s *SimpleMapStore) KNN(vector *Vector, k int) (*[]Distance, error) {
+	return MapStoreKNN(s, vector, k), nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/Comonut/vectorugo/store"
 )
@@ -73,7 +74,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			err = config.store.Set(k, &store.Vector{ID: k, Values: v})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, "Error writing to store:	", err)
+				fmt.Fprint(w, "Error writing to store", err)
 				return
 			}
 		}
@@ -101,5 +102,54 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 }
 
 func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Recieved search with request\n", *r)
+	switch r.Method {
+	case "GET":
+		key, ok := r.URL.Query()["id"]
+
+		if !ok || len(key[0]) <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Request param 'id' is missing")
+			return
+		}
+
+		k, ok := r.URL.Query()["k"]
+		if !ok || len(k[0]) <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Request param 'k' is missing")
+			return
+		}
+
+		kN, err := strconv.Atoi(k[0])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, "k has to be an integer ")
+			return
+		}
+
+		value, err := config.store.Get(key[0])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, "Value not present in store: ")
+			return
+		}
+
+		results, err := config.store.KNN(value, kN)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error getting search results")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(results)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error serializing response vector")
+			return
+		}
+
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprint(w, "Invalid request method - Only GET and POST are supported")
+
+	}
 }
