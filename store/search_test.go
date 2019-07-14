@@ -18,11 +18,9 @@ func TestSearch(t *testing.T) {
 	v5.Values[4] = 1
 
 	s := NewSimpleMapStore()
-	s.Set(v5.ID, v5)
-	s.Set(v3.ID, v3)
-	s.Set(v2.ID, v2)
-	s.Set(v4.ID, v4)
-	s.Set(v1.ID, v1)
+	if s.Set(v5.ID, v5) != nil || s.Set(v3.ID, v3) != nil || s.Set(v2.ID, v2) != nil || s.Set(v4.ID, v4) != nil || s.Set(v1.ID, v1) != nil {
+		t.Error("error setting values")
+	}
 
 	neighbors := MapStoreKNN(&s, v1, 5)
 	for i := range *neighbors {
