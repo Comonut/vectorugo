@@ -24,6 +24,7 @@ func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
 
+
 	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil {
 		t.Error("error setting values")
 	}
