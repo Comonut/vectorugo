@@ -1,6 +1,11 @@
 package store
 
-import "testing"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"testing"
+)
 
 func TestSum(t *testing.T) {
 	var onesVector = Ones("", 32)
@@ -24,7 +29,6 @@ func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
 
-
 	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil {
 		t.Error("error setting values")
 	}
@@ -46,4 +50,28 @@ func testStore(s Store, t *testing.T) {
 func TestSimpleMapStore(t *testing.T) {
 	var s = NewSimpleMapStore()
 	testStore(&s, t)
+}
+
+func TestPersistantStore(t *testing.T) {
+	s := NewPersitantStore(uint32(2), "index.bin", "vectors.bin")
+	v1 := Random("v1", 2)
+	v2 := Ones("v2", 2)
+
+	s.Set("v1", v1)
+	s.Set("v2", v2)
+
+	fmt.Print(s.Get("v2"))
+	fmt.Print(s.Get("v1"))
+}
+
+func TestReadFile(t *testing.T) {
+	f, _ := os.Open("index.bin")
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	fmt.Print("done")
 }

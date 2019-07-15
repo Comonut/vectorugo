@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	fmt.Print("Starting server")
+	fmt.Println("Starting server")
 	server.Init()
 }

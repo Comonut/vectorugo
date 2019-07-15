@@ -40,3 +40,14 @@ func BytesToArray(arr []byte) []float64 {
 	}
 	return floats
 }
+
+func (s *PersistantStore) WriteAtPos(v *Vector, pos uint32) {
+	bytes := ArrToBytes(v.Values)
+	s.vectorsFile.WriteAt(bytes, int64(pos*8*s.dimension))
+}
+
+func (s *PersistantStore) ReadAtPos(pos uint32) []float64 {
+	bytes := make([]byte, s.dimension*8)
+	s.vectorsFile.ReadAt(bytes, int64(s.dimension*8*pos))
+	return BytesToArray(bytes)
+}
