@@ -1,8 +1,6 @@
 package store
 
 import (
-	"bufio"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -25,6 +23,22 @@ func get(s Store, id string) (*Vector, error) {
 func del(s Store, id string) error {
 	return s.Delete(id)
 }
+
+func vectorEquals(this, other *Vector) bool {
+	if this.ID != other.ID {
+		return false
+	}
+	if len(this.Values) != len(this.Values) {
+		return false
+	}
+	for i, e := range this.Values {
+		if e != (*other).Values[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
@@ -34,7 +48,7 @@ func testStore(s Store, t *testing.T) {
 	}
 
 	var val, err = get(s, ones.ID)
-	if err != nil || val != ones {
+	if err != nil || !vectorEquals(val, ones) {
 		t.Error("error getting values")
 	}
 
@@ -48,30 +62,13 @@ func testStore(s Store, t *testing.T) {
 }
 
 func TestSimpleMapStore(t *testing.T) {
-	var s = NewSimpleMapStore()
+	s := NewSimpleMapStore()
 	testStore(&s, t)
 }
 
 func TestPersistantStore(t *testing.T) {
-	s := NewPersitantStore(uint32(2), "index.bin", "vectors.bin")
-	v1 := Random("v1", 2)
-	v2 := Ones("v2", 2)
-
-	s.Set("v1", v1)
-	s.Set("v2", v2)
-
-	fmt.Print(s.Get("v2"))
-	fmt.Print(s.Get("v1"))
-}
-
-func TestReadFile(t *testing.T) {
-	f, _ := os.Open("index.bin")
-	defer f.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	fmt.Print("done")
+	os.Remove("index.test")
+	os.Remove("vectors.test")
+	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test")
+	testStore(s, t)
 }

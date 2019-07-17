@@ -49,11 +49,11 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile string) *Persi
 	scanner := bufio.NewScanner(index)
 	posIndex := make(map[string]uint32) //id to pos index
 	counter := uint32(0)
-	fmt.Println("Done!") //for each line in the id's list - map it to it's position
 	for scanner.Scan() {
 		posIndex[scanner.Text()] = counter
 		counter++
 	}
+	fmt.Println("Done!") //for each line in the id's list - map it to it's position
 	return &PersistantStore{
 		dimension:   dimension,
 		index:       posIndex,
