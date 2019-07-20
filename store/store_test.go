@@ -28,7 +28,7 @@ func vectorEquals(this, other *Vector) bool {
 	if this.ID != other.ID {
 		return false
 	}
-	if len(this.Values) != len(this.Values) {
+	if len(this.Values) != len(other.Values) {
 		return false
 	}
 	for i, e := range this.Values {
@@ -42,8 +42,9 @@ func vectorEquals(this, other *Vector) bool {
 func testStore(s Store, t *testing.T) {
 	var ones = Ones("ones", 32)
 	var zeros = Zeros("zeros", 32)
+	var random = Random("rand", 32)
 
-	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil {
+	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil || set(s, random.ID, random) != nil {
 		t.Error("error setting values")
 	}
 
@@ -58,6 +59,14 @@ func testStore(s Store, t *testing.T) {
 	_, err = get(s, ones.ID)
 	if err == nil {
 		t.Error("can get value that should have been deleted")
+	}
+	val, err = get(s, random.ID)
+	if err != nil || !vectorEquals(val, random) {
+		t.Error("error getting values")
+	}
+	val, err = get(s, zeros.ID)
+	if err != nil || !vectorEquals(val, zeros) {
+		t.Error("error getting values")
 	}
 }
 

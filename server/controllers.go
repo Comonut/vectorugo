@@ -14,8 +14,8 @@ type controllerConfiguration struct {
 	store store.Store
 }
 
-func Init() {
-	var store, _ = store.NewPersitantStore(uint32(300), "index.bin", "vectors.bin")
+func Init(size uint32, name string) {
+	var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
 	var config = controllerConfiguration{store}
 
 	http.HandleFunc("/vectors", config.handleVectors)

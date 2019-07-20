@@ -56,12 +56,18 @@ func BytesToArray(arr []byte) []float64 {
 //Writes the values of a vector in a given position in the file
 func (s *PersistantStore) WriteAtPos(v *Vector, pos uint32) {
 	bytes := ArrToBytes(v.Values)
-	s.vectorsFile.WriteAt(bytes, int64(pos*8*s.dimension))
+	_, err := s.vectorsFile.WriteAt(bytes, int64(pos*8*s.dimension))
+	if err != nil {
+		panic(fmt.Errorf("Error writing in vectors file"))
+	}
 }
 
 //Reads the values of a vector from a given position
 func (s *PersistantStore) ReadAtPos(pos uint32) []float64 {
 	bytes := make([]byte, s.dimension*8)
-	s.vectorsFile.ReadAt(bytes, int64(s.dimension*8*pos))
+	_, err := s.vectorsFile.ReadAt(bytes, int64(s.dimension*8*pos))
+	if err != nil {
+		panic(fmt.Errorf("Error reading vectors file"))
+	}
 	return BytesToArray(bytes)
 }

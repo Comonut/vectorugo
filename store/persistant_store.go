@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 )
 
 type PersistantStore struct {
@@ -66,10 +67,13 @@ func (s *PersistantStore) Set(id string, vector *Vector) error {
 	if pos, ok := s.index[id]; ok { //if this id is indexed
 		s.WriteAtPos(vector, pos) //write at vector's position in file
 	} else {
-		s.WriteAtPos(vector, s.size)       //if it doesn't exist, write at end of vector's file
-		s.indexFile.WriteString(id + "\n") //add it to list of ids
-		s.index[id] = s.size               //create pos index for id
-		s.size++                           //increment size of store
+		s.WriteAtPos(vector, s.size)                 //if it doesn't exist, write at end of vector's file
+		_, err := s.indexFile.WriteString(id + "\n") //add it to list of ids
+		if err != nil {
+			return err
+		}
+		s.index[id] = s.size //create pos index for id
+		s.size++             //increment size of store
 	}
 	return nil
 }
@@ -85,7 +89,40 @@ func (s *PersistantStore) Get(id string) (*Vector, error) {
 		Values: s.ReadAtPos(pos)}, nil
 }
 
+type idPosPair struct {
+	id  string
+	pos uint32
+}
+
 func (s *PersistantStore) Delete(id string) error {
+	positionsArr := make([]idPosPair, len(s.index))
+	counter := 0
+	for k, v := range s.index {
+		positionsArr[counter] = idPosPair{id: k, pos: v}
+		counter++
+	}
+	sort.Slice(positionsArr, func(i, j int) bool {
+		return positionsArr[i].pos < positionsArr[j].pos
+	})
+	last := positionsArr[len(positionsArr)-1]
+	positionsArr[s.index[id]] = last
+	s.index[last.id] = s.index[id]
+	delete(s.index, id)
+	s.WriteAtPos(&Vector{"", s.ReadAtPos(last.pos)}, s.index[last.id])
+	s.size--
+	err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
+	if err != nil {
+		panic(fmt.Errorf("error shrinking vectors file"))
+	}
+	index := s.indexFile.Name()
+	os.Remove(index)
+	s.indexFile, _ = os.Create(index)
+	for _, k := range positionsArr[:s.size] {
+		_, err = s.indexFile.WriteString(k.id + "\n")
+		if err != nil {
+			panic(fmt.Errorf("error updanting index file"))
+		}
+	}
 	return nil
 }
 
