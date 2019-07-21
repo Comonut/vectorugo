@@ -76,8 +76,8 @@ func TestSimpleMapStore(t *testing.T) {
 }
 
 func TestPersistantStore(t *testing.T) {
-	os.Remove("index.test")
-	os.Remove("vectors.test")
 	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test")
 	testStore(s, t)
+	os.Remove("index.test")
+	os.Remove("vectors.test")
 }
