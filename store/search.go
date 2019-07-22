@@ -38,12 +38,12 @@ type Distance struct {
 * return array with closest k neighbors containing Id, Vectro Values and Distance for each neighbor
  */
 func MapStoreKNN(storeVectors *SimpleMapStore, testVector *Vector, k int) *[]Distance {
-	sortedDistances := make([]Distance, len(*storeVectors))
+	sortedDistances := make([]Distance, len(storeVectors.vectors))
 	var currentVector Distance
 	counter := 0
 
 	//loop through map, calculate distance for each vector, append result in return array
-	for _, v := range *storeVectors {
+	for _, v := range storeVectors.vectors {
 		currentVector.Target = v
 		currentVector.Distance = EuclideanDistance(v, testVector)
 		sortedDistances[counter] = currentVector

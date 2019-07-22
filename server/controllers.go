@@ -15,8 +15,9 @@ type controllerConfiguration struct {
 }
 
 func Init(size uint32, name string) {
-	var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
-	var config = controllerConfiguration{store}
+	// var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
+	s := store.NewSimpleMapStore()
+	var config = controllerConfiguration{s}
 
 	http.HandleFunc("/vectors", config.handleVectors)
 	http.HandleFunc("/search", config.searchByID)
