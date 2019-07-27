@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"math"
 	"sort"
 )
@@ -11,8 +12,8 @@ type Index struct {
 }
 
 type branch struct {
-	pos   *Vector
-	leafs []*Vector
+	pos   Vector
+	leafs []Vector
 }
 
 func NewIndex() *Index {
@@ -20,8 +21,8 @@ func NewIndex() *Index {
 }
 
 func transfer(old, new *branch) {
-	newLeafs := make([]*Vector, 0)
-	updatedOldLeafs := make([]*Vector, 0)
+	newLeafs := make([]Vector, 0)
+	updatedOldLeafs := make([]Vector, 0)
 
 	for _, l := range old.leafs {
 		if l == old.pos {
@@ -34,12 +35,12 @@ func transfer(old, new *branch) {
 	}
 
 	old.leafs = updatedOldLeafs
-	new.leafs = newLeafs
+	new.leafs = append(new.leafs, newLeafs...)
 }
 
-func (index *Index) AddVector(v *Vector) {
+func (index *Index) AddVector(v Vector) {
 	if len(index.branches) == 0 {
-		index.branches = append(index.branches, &branch{pos: v, leafs: []*Vector{v}})
+		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
 		return
 	}
 
@@ -54,12 +55,12 @@ func (index *Index) AddVector(v *Vector) {
 	}
 
 	if len(closest.leafs) == index.maxlen {
-		index.branches = append(index.branches, &branch{pos: v, leafs: []*Vector{v}})
+		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
 		transfer(closest, index.branches[len(index.branches)-1])
 	} else {
 		closest.leafs = append(closest.leafs, v)
 	}
-
+	fmt.Println((index.maxlen / 2) * index.maxlen / 2)
 }
 
 type BranchDistance struct {
@@ -67,7 +68,7 @@ type BranchDistance struct {
 	Distance float64 //Distance
 }
 
-func (index *Index) IndexKNN(k int, v *Vector) *[]Distance {
+func (index *Index) IndexKNN(k int, v Vector) *[]Distance {
 	sortedBranches := make([]BranchDistance, len(index.branches))
 
 	//loop through map, calculate distance for each vector, append result in return array
@@ -79,7 +80,7 @@ func (index *Index) IndexKNN(k int, v *Vector) *[]Distance {
 		return sortedBranches[i].Distance < sortedBranches[j].Distance
 	})
 
-	potentials := make([]*Vector, 0)
+	potentials := make([]Vector, 0)
 
 	for i := 0; len(potentials) < k; i++ {
 		potentials = append(potentials, sortedBranches[i].Target.leafs...)

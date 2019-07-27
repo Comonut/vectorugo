@@ -14,9 +14,14 @@ type controllerConfiguration struct {
 	store store.Store
 }
 
-func Init(size uint32, name string) {
+func Init(size uint32, name string, persistance bool) {
 	// var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
-	s := store.NewSimpleMapStore()
+	var s store.Store
+	if persistance {
+		s, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
+	} else {
+		s = store.NewSimpleMapStore()
+	}
 	var config = controllerConfiguration{s}
 
 	http.HandleFunc("/vectors", config.handleVectors)
@@ -71,7 +76,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			return
 		}
 		for k, v := range v {
-			err = config.store.Set(k, &store.Vector{ID: k, Values: v})
+			err = config.store.Set(k, &store.MemoryVector{ID: k, Array: v})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, "Error writing to store", err)
@@ -126,7 +131,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 		response := make([]SearchResponseModel, len(*results))
 		for i, result := range *results {
-			response[i] = SearchResponseModel{ID: result.Target.ID, Distance: result.Distance}
+			response[i] = SearchResponseModel{ID: result.Target.Name(), Distance: result.Distance}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(response)

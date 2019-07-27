@@ -3,16 +3,17 @@ package store
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
-	"sort"
 )
 
 type PersistantStore struct {
 	dimension   uint32            //size of vectors
 	index       map[string]uint32 //maps id's to positions in the file
 	size        uint32            //number of vectors inside
-	indexFile   *os.File          //file that contains the mapping from id to position in vectors file
-	vectorsFile *os.File          //vectors file (see encodings.go)
+	seachIndex  *Index
+	indexFile   *os.File //file that contains the mapping from id to position in vectors file
+	vectorsFile *os.File //vectors file (see encodings.go)
 }
 
 func NewPersitantStore(dimension uint32, indexFile, vectorsFile string) (*PersistantStore, error) {
@@ -39,7 +40,8 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile string) *
 		index:       make(map[string]uint32),
 		size:        uint32(0),
 		indexFile:   index,
-		vectorsFile: vectors}
+		vectorsFile: vectors,
+		seachIndex:  NewIndex()}
 }
 
 //Loads an existing store
@@ -63,30 +65,36 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile string) *Persi
 		vectorsFile: vectors}
 }
 
-func (s *PersistantStore) Set(id string, vector *Vector) error {
+func (s *PersistantStore) Set(id string, vector Vector) error {
+
+	persistant := &PersistantVector{ID: vector.Name(), pos: 0, store: s}
 	if pos, ok := s.index[id]; ok { //if this id is indexed
-		s.WriteAtPos(vector, pos) //write at vector's position in file
+		persistant.pos = pos
+		s.WriteAtPos(*vector.Values(), pos) //write at vector's position in file
 	} else {
-		s.WriteAtPos(vector, s.size)                 //if it doesn't exist, write at end of vector's file
+		persistant.pos = s.size
+		s.WriteAtPos(*vector.Values(), s.size)       //if it doesn't exist, write at end of vector's file
 		_, err := s.indexFile.WriteString(id + "\n") //add it to list of ids
 		if err != nil {
 			return err
 		}
 		s.index[id] = s.size //create pos index for id
-		s.size++             //increment size of store
+		s.seachIndex.AddVector(persistant)
+		s.size++ //increment size of store
+		s.seachIndex.maxlen = int(math.Sqrt(float64(s.size)))
 	}
 	return nil
 }
 
-func (s *PersistantStore) Get(id string) (*Vector, error) {
+func (s *PersistantStore) Get(id string) (Vector, error) {
 	pos, ok := s.index[id]
 	if !ok {
 		return nil, fmt.Errorf("value not present")
 	}
 
-	return &Vector{
-		ID:     id,
-		Values: s.ReadAtPos(pos)}, nil
+	return &MemoryVector{
+		ID:    id,
+		Array: s.ReadAtPos(pos)}, nil
 }
 
 type idPosPair struct {
@@ -95,37 +103,37 @@ type idPosPair struct {
 }
 
 func (s *PersistantStore) Delete(id string) error {
-	positionsArr := make([]idPosPair, len(s.index))
-	counter := 0
-	for k, v := range s.index {
-		positionsArr[counter] = idPosPair{id: k, pos: v}
-		counter++
-	}
-	sort.Slice(positionsArr, func(i, j int) bool {
-		return positionsArr[i].pos < positionsArr[j].pos
-	})
-	last := positionsArr[len(positionsArr)-1]
-	positionsArr[s.index[id]] = last
-	s.index[last.id] = s.index[id]
-	delete(s.index, id)
-	s.WriteAtPos(&Vector{"", s.ReadAtPos(last.pos)}, s.index[last.id])
-	s.size--
-	err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
-	if err != nil {
-		panic(fmt.Errorf("error shrinking vectors file"))
-	}
-	index := s.indexFile.Name()
-	os.Remove(index)
-	s.indexFile, _ = os.Create(index)
-	for _, k := range positionsArr[:s.size] {
-		_, err = s.indexFile.WriteString(k.id + "\n")
-		if err != nil {
-			panic(fmt.Errorf("error updanting index file"))
-		}
-	}
+	// positionsArr := make([]idPosPair, len(s.index))
+	// counter := 0
+	// for k, v := range s.index {
+	// 	positionsArr[counter] = idPosPair{id: k, pos: v}
+	// 	counter++
+	// }
+	// sort.Slice(positionsArr, func(i, j int) bool {
+	// 	return positionsArr[i].pos < positionsArr[j].pos
+	// })
+	// last := positionsArr[len(positionsArr)-1]
+	// positionsArr[s.index[id]] = last
+	// s.index[last.id] = s.index[id]
+	// delete(s.index, id)
+	// s.WriteAtPos(&Vector{"", s.ReadAtPos(last.pos)}, s.index[last.id])
+	// s.size--
+	// err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
+	// if err != nil {
+	// 	panic(fmt.Errorf("error shrinking vectors file"))
+	// }
+	// index := s.indexFile.Name()
+	// os.Remove(index)
+	// s.indexFile, _ = os.Create(index)
+	// for _, k := range positionsArr[:s.size] {
+	// 	_, err = s.indexFile.WriteString(k.id + "\n")
+	// 	if err != nil {
+	// 		panic(fmt.Errorf("error updanting index file"))
+	// 	}
+	// }
 	return nil
 }
 
-func (s *PersistantStore) KNN(vector *Vector, k int) (*[]Distance, error) {
-	return nil, nil
+func (s *PersistantStore) KNN(vector Vector, k int) (*[]Distance, error) {
+	return s.seachIndex.IndexKNN(k, vector), nil
 }

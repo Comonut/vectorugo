@@ -5,18 +5,11 @@ import (
 	"testing"
 )
 
-func TestSum(t *testing.T) {
-	var onesVector = Ones("", 32)
-	if onesVector.Sum() != 32 {
-		t.Errorf("Wrong sum")
-	}
-}
-
-func set(s Store, id string, vector *Vector) error {
+func set(s Store, id string, vector Vector) error {
 	return s.Set(id, vector)
 }
 
-func get(s Store, id string) (*Vector, error) {
+func get(s Store, id string) (Vector, error) {
 	return s.Get(id)
 }
 
@@ -24,15 +17,15 @@ func del(s Store, id string) error {
 	return s.Delete(id)
 }
 
-func vectorEquals(this, other *Vector) bool {
-	if this.ID != other.ID {
+func vectorEquals(this, other Vector) bool {
+	if this.Name() != other.Name() {
 		return false
 	}
-	if len(this.Values) != len(other.Values) {
+	if len(this.Values()) != len(other.Values()) {
 		return false
 	}
-	for i, e := range this.Values {
-		if e != (*other).Values[i] {
+	for i, e := range this.Values() {
+		if e != other.Values()[i] {
 			return false
 		}
 	}
@@ -72,7 +65,7 @@ func testStore(s Store, t *testing.T) {
 
 func TestSimpleMapStore(t *testing.T) {
 	s := NewSimpleMapStore()
-	testStore(&s, t)
+	testStore(s, t)
 }
 
 func TestPersistantStore(t *testing.T) {

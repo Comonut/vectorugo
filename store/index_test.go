@@ -11,7 +11,7 @@ import (
 func TestIndex(t *testing.T) {
 	i := NewIndex()
 
-	var v *Vector
+	var v Vector
 
 	for q := 0; q < 1000; q++ {
 		if rand.Intn(2)%2 == 0 {
