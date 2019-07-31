@@ -1,14 +1,17 @@
 package store
 
 import (
-	"fmt"
+	"encoding/binary"
 	"math"
+	"os"
 	"sort"
 )
 
 type Index struct {
 	maxlen   int
+	size     int64
 	branches []*branch
+	file     *os.File
 }
 
 type branch struct {
@@ -16,11 +19,52 @@ type branch struct {
 	leafs []Vector
 }
 
-func NewIndex() *Index {
-	return &Index{maxlen: 2, branches: make([]*branch, 0)}
+func NewIndex(file *os.File) *Index {
+	if file != nil {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
+	} else {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
+	}
+}
+func LoadIndex(file *os.File) *Index {
+	if file != nil {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
+	} else {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
+	}
 }
 
-func transfer(old, new *branch) {
+func (index *Index) writeLeafToFile(leaf, branch Vector) {
+
+	leafPv := leaf.(*PersistantVector)
+	branchPv := branch.(*PersistantVector)
+
+	leafBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
+	branchBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(branchBytes, branchPv.pos)
+
+	allBytes := append(leafBytes, branchBytes...)
+
+	index.file.WriteAt(allBytes, index.size)
+}
+
+func (index *Index) overrideLeafToFile(leaf, branch Vector) {
+
+	leafPv := leaf.(*PersistantVector)
+	branchPv := branch.(*PersistantVector)
+
+	leafBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
+	branchBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(branchBytes, branchPv.pos)
+
+	allBytes := append(leafBytes, branchBytes...)
+
+	index.file.WriteAt(allBytes, int64(leafPv.pos))
+}
+
+func (index *Index) transfer(old, new *branch) {
 	newLeafs := make([]Vector, 0)
 	updatedOldLeafs := make([]Vector, 0)
 
@@ -31,6 +75,7 @@ func transfer(old, new *branch) {
 			updatedOldLeafs = append(updatedOldLeafs, l)
 		} else {
 			newLeafs = append(newLeafs, l)
+			index.overrideLeafToFile(l, new.pos)
 		}
 	}
 
@@ -41,6 +86,9 @@ func transfer(old, new *branch) {
 func (index *Index) AddVector(v Vector) {
 	if len(index.branches) == 0 {
 		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
+		if index.file != nil {
+			index.writeLeafToFile(v, v)
+		}
 		return
 	}
 
@@ -56,11 +104,17 @@ func (index *Index) AddVector(v Vector) {
 
 	if len(closest.leafs) == index.maxlen {
 		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
-		transfer(closest, index.branches[len(index.branches)-1])
+		if index.file != nil {
+			index.writeLeafToFile(v, v)
+		}
+		index.transfer(closest, index.branches[len(index.branches)-1])
 	} else {
 		closest.leafs = append(closest.leafs, v)
+		if index.file != nil {
+			index.writeLeafToFile(v, closest.pos)
+		}
 	}
-	fmt.Println((index.maxlen / 2) * index.maxlen / 2)
+	index.size += 1
 }
 
 type BranchDistance struct {
