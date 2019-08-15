@@ -18,7 +18,7 @@ func Init(size uint32, name string, persistance bool) {
 	// var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
 	var s store.Store
 	if persistance {
-		s, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
+		s, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin", name+"_search.bin")
 	} else {
 		s = store.NewSimpleMapStore()
 	}

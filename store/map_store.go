@@ -13,7 +13,7 @@ type SimpleMapStore struct {
 
 //NewSimpleMapStore returns a new map store
 func NewSimpleMapStore() *SimpleMapStore {
-	return &SimpleMapStore{vectors: make(map[string]Vector), index: NewIndex()}
+	return &SimpleMapStore{vectors: make(map[string]Vector), index: NewIndex(nil, nil)}
 }
 
 //Get Vector pointer using a given id, returns error if not found

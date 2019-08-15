@@ -16,52 +16,77 @@ type Index struct {
 
 type branch struct {
 	pos   Vector
+	id    uint32
 	leafs []Vector
 }
 
-func NewIndex(file *os.File) *Index {
+func NewIndex(file *os.File, store Store) *Index {
 	if file != nil {
 		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
 	} else {
 		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
 	}
 }
-func LoadIndex(file *os.File) *Index {
-	if file != nil {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
-	} else {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
+func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantStore) *Index {
+	branchesArr := make([]*branch, 0)
+	branchesMap := make(map[uint32]int)
+	var leafPosBytes = make([]byte, 4)
+	var branchPosBytes = make([]byte, 4)
+
+	var leafPos uint32
+	var branchPos uint32
+
+	var leaf Vector
+
+	for i := 0; i < len(inversePosIndex); i++ {
+		file.ReadAt(leafPosBytes, int64(i*8))
+		file.ReadAt(branchPosBytes, int64(i*8+4))
+
+		leafPos = binary.LittleEndian.Uint32(leafPosBytes)
+		branchPos = binary.LittleEndian.Uint32(branchPosBytes)
+
+		leaf = &PersistantVector{inversePosIndex[leafPos], leafPos, s}
+
+		branchID, ok := branchesMap[branchPos]
+
+		if ok {
+			branchesArr[branchID].leafs = append(branchesArr[branchID].leafs, leaf)
+		} else {
+			branchesMap[branchPos] = len(branchesArr)
+			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: s.ReadAtPos(branchPos)}, id: branchPos, leafs: []Vector{leaf}})
+		}
 	}
+
+	return &Index{maxlen: int(2 * (math.Sqrt(float64(len(inversePosIndex))))), size: int64(len(inversePosIndex)), branches: branchesArr, file: file}
+
 }
 
-func (index *Index) writeLeafToFile(leaf, branch Vector) {
+func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
 
 	leafPv := leaf.(*PersistantVector)
-	branchPv := branch.(*PersistantVector)
 
 	leafBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
 	branchBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(branchBytes, branchPv.pos)
+	binary.LittleEndian.PutUint32(branchBytes, branch.id)
 
 	allBytes := append(leafBytes, branchBytes...)
 
-	index.file.WriteAt(allBytes, index.size)
+	index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
 }
 
-func (index *Index) overrideLeafToFile(leaf, branch Vector) {
+func (index *Index) overrideLeafToFile(leaf Vector, branch *branch) {
 
 	leafPv := leaf.(*PersistantVector)
-	branchPv := branch.(*PersistantVector)
 
 	leafBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
 	branchBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(branchBytes, branchPv.pos)
+	binary.LittleEndian.PutUint32(branchBytes, branch.id)
 
 	allBytes := append(leafBytes, branchBytes...)
 
-	index.file.WriteAt(allBytes, int64(leafPv.pos))
+	index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
 }
 
 func (index *Index) transfer(old, new *branch) {
@@ -75,7 +100,7 @@ func (index *Index) transfer(old, new *branch) {
 			updatedOldLeafs = append(updatedOldLeafs, l)
 		} else {
 			newLeafs = append(newLeafs, l)
-			index.overrideLeafToFile(l, new.pos)
+			index.overrideLeafToFile(l, new)
 		}
 	}
 
@@ -85,9 +110,12 @@ func (index *Index) transfer(old, new *branch) {
 
 func (index *Index) AddVector(v Vector) {
 	if len(index.branches) == 0 {
-		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		index.branches = append(index.branches, new)
 		if index.file != nil {
-			index.writeLeafToFile(v, v)
+			pv := v.(*PersistantVector)
+			index.branches[len(index.branches)-1].id = pv.pos
+			index.writeLeafToFile(v, new)
 		}
 		return
 	}
@@ -103,15 +131,18 @@ func (index *Index) AddVector(v Vector) {
 	}
 
 	if len(closest.leafs) == index.maxlen {
-		index.branches = append(index.branches, &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}})
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		index.branches = append(index.branches, new)
 		if index.file != nil {
-			index.writeLeafToFile(v, v)
+			pv := v.(*PersistantVector)
+			index.branches[len(index.branches)-1].id = pv.pos
+			index.writeLeafToFile(v, new)
 		}
 		index.transfer(closest, index.branches[len(index.branches)-1])
 	} else {
 		closest.leafs = append(closest.leafs, v)
 		if index.file != nil {
-			index.writeLeafToFile(v, closest.pos)
+			index.writeLeafToFile(v, closest)
 		}
 	}
 	index.size += 1

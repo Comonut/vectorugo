@@ -16,53 +16,66 @@ type PersistantStore struct {
 	vectorsFile *os.File //vectors file (see encodings.go)
 }
 
-func NewPersitantStore(dimension uint32, indexFile, vectorsFile string) (*PersistantStore, error) {
+func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) (*PersistantStore, error) {
 	_, err1 := os.Stat(indexFile)
 	_, err2 := os.Stat(indexFile)
 
 	// If index doesn't exist
 	if os.IsNotExist(err1) && os.IsNotExist(err2) {
-		return ConstructPersistantStore(dimension, indexFile, vectorsFile), nil
+		return ConstructPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
 	} else if os.IsNotExist(err1) || os.IsNotExist(err2) { //If one of the two files exists - something is wrong
 		return nil, fmt.Errorf("Index or vectors file exists, but other one doesn't")
 	} else { //if they don't exist create a new storage
-		return LoadPersistantStore(dimension, indexFile, vectorsFile), nil
+		return LoadPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
 	}
 }
 
 //Creates a new persistant store
-func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile string) *PersistantStore {
+func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) *PersistantStore {
 	fmt.Println("New persistant storage initialized")
 	index, _ := os.Create(indexFile)
 	vectors, _ := os.Create(vectorsFile)
-	return &PersistantStore{
+	search, _ := os.Create(searchindexFile)
+	store := &PersistantStore{
 		dimension:   dimension,
 		index:       make(map[string]uint32),
 		size:        uint32(0),
 		indexFile:   index,
 		vectorsFile: vectors,
-		seachIndex:  NewIndex()}
+		seachIndex:  nil}
+
+	store.seachIndex = NewIndex(search, store)
+	return store
 }
 
 //Loads an existing store
-func LoadPersistantStore(dimension uint32, indexFile, vectorsFile string) *PersistantStore {
+func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFiles string) *PersistantStore {
 	fmt.Println("Loading existant persistance storage")
 	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
 	vectors, _ := os.OpenFile(vectorsFile, os.O_RDWR|os.O_CREATE, 0755)
+	search, _ := os.OpenFile(searchindexFiles, os.O_RDWR|os.O_CREATE, 0755)
 	scanner := bufio.NewScanner(index)
-	posIndex := make(map[string]uint32) //id to pos index
+	posIndex := make(map[string]uint32)        //id to pos index
+	inversePosIndex := make(map[uint32]string) //id to pos index
 	counter := uint32(0)
 	for scanner.Scan() {
-		posIndex[scanner.Text()] = counter
+		name := scanner.Text()
+		posIndex[name] = counter
+		inversePosIndex[counter] = name
 		counter++
 	}
+
 	fmt.Println("Done!") //for each line in the id's list - map it to it's position
-	return &PersistantStore{
+	store := &PersistantStore{
 		dimension:   dimension,
 		index:       posIndex,
 		size:        counter,
 		indexFile:   index,
+		seachIndex:  nil,
 		vectorsFile: vectors}
+
+	store.seachIndex = LoadIndex(search, inversePosIndex, store)
+	return store
 }
 
 func (s *PersistantStore) Set(id string, vector Vector) error {
@@ -79,9 +92,10 @@ func (s *PersistantStore) Set(id string, vector Vector) error {
 			return err
 		}
 		s.index[id] = s.size //create pos index for id
+		s.seachIndex.maxlen = 2 * int(math.Sqrt(float64(s.size)))
 		s.seachIndex.AddVector(persistant)
 		s.size++ //increment size of store
-		s.seachIndex.maxlen = int(math.Sqrt(float64(s.size)))
+
 	}
 	return nil
 }
