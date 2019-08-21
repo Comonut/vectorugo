@@ -21,11 +21,11 @@ func vectorEquals(this, other Vector) bool {
 	if this.Name() != other.Name() {
 		return false
 	}
-	if len(this.Values()) != len(other.Values()) {
+	if len(*this.Values()) != len(*other.Values()) {
 		return false
 	}
-	for i, e := range this.Values() {
-		if e != other.Values()[i] {
+	for i, e := range *this.Values() {
+		if e != (*other.Values())[i] {
 			return false
 		}
 	}
@@ -69,8 +69,9 @@ func TestSimpleMapStore(t *testing.T) {
 }
 
 func TestPersistantStore(t *testing.T) {
-	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test")
+	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test", "search.test")
 	testStore(s, t)
 	os.Remove("index.test")
 	os.Remove("vectors.test")
+	os.Remove("search.test")
 }

@@ -15,12 +15,12 @@ import (
 func TestMain(t *testing.T) {
 	os.Remove("test_index.bin")
 	os.Remove("test_vectors.bin")
-	go Init(uint32(4), "test")
+	os.Remove("test_search.bin")
+	go Init(uint32(4), "test", false)
 	time.Sleep(2 * time.Second)
 
 	testSetGet(t)
-	//TODO
-	// testSearchController(t)
+	testSearchController(t)
 }
 
 func testSetGet(t *testing.T) {
@@ -45,49 +45,48 @@ func testSetGet(t *testing.T) {
 	if err != nil {
 		t.Error("could not read response")
 	}
-	var v store.Vector
+	var v store.MemoryVector
 	if json.Unmarshal(b, &v) != nil {
 		t.Error("could not parse response from get")
 	}
 
-	expected := store.Vector{ID: "v1", Values: []float64{0, 0, 1, 3.14}}
+	expected := store.MemoryVector{ID: "v1", Array: []float64{0, 0, 1, 3.14}}
 
-	if v.ID != expected.ID || len(expected.Values) != len(v.Values) {
+	if v.ID != expected.ID || len(*expected.Values()) != len(*v.Values()) {
 		t.Error("Received wrong vector lol")
 	}
 
-	for i := range v.Values {
-		if v.Values[i] != expected.Values[i] {
-			t.Errorf("diffent values at position %d - expected %f , but got %f", i, expected.Values[i], v.Values[i])
+	for i := range *v.Values() {
+		if (*v.Values())[i] != (*expected.Values())[i] {
+			t.Errorf("diffent values at position %d - expected %f , but got %f", i, (*expected.Values())[i], (*v.Values())[i])
 		}
 	}
 
 }
 
-//TODO
-// func testSearchController(t *testing.T) {
-// 	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" : [0, 0.0, 1, 3.14]}")))
-// 	if err != nil || resp.StatusCode != 200 {
-// 		t.Errorf("Error setting values %d", resp.StatusCode)
-// 	}
+func testSearchController(t *testing.T) {
+	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" : [0, 0.0, 1, 3.14]}")))
+	if err != nil || resp.StatusCode != 200 {
+		t.Errorf("Error setting values %d", resp.StatusCode)
+	}
 
-// 	resp, err = http.Get("http://localhost:8080/search?id=v1&k=1")
-// 	if err != nil || resp.StatusCode != 200 {
-// 		t.Errorf("Error getting values %d", resp.StatusCode)
-// 	}
+	resp, err = http.Get("http://localhost:8080/search?id=v1&k=1")
+	if err != nil || resp.StatusCode != 200 {
+		t.Errorf("Error getting values %d", resp.StatusCode)
+	}
 
-// 	b, err := ioutil.ReadAll(resp.Body)
-// 	defer resp.Body.Close()
-// 	if err != nil {
-// 		t.Error("could not read response")
-// 	}
-// 	var v []SearchResponseModel
-// 	if json.Unmarshal(b, &v) != nil {
-// 		t.Error("could not parse response from get")
-// 	}
+	b, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		t.Error("could not read response")
+	}
+	var v []SearchResponseModel
+	if json.Unmarshal(b, &v) != nil {
+		t.Error("could not parse response from get")
+	}
 
-// 	if v[0].ID != "v1" || v[0].Distance != 0 {
-// 		t.Error("wrong result")
-// 	}
+	if v[0].ID != "v1" || v[0].Distance != 0 {
+		t.Error("wrong result")
+	}
 
-// }
+}

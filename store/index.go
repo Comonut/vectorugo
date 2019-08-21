@@ -62,7 +62,9 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 }
 
 func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
-
+	if index.file == nil {
+		return
+	}
 	leafPv := leaf.(*PersistantVector)
 
 	leafBytes := make([]byte, 4)
@@ -76,7 +78,9 @@ func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
 }
 
 func (index *Index) overrideLeafToFile(leaf Vector, branch *branch) {
-
+	if index.file == nil {
+		return
+	}
 	leafPv := leaf.(*PersistantVector)
 
 	leafBytes := make([]byte, 4)
