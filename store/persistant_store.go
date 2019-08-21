@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 )
 
 type PersistantStore struct {
@@ -117,34 +118,34 @@ type idPosPair struct {
 }
 
 func (s *PersistantStore) Delete(id string) error {
-	// positionsArr := make([]idPosPair, len(s.index))
-	// counter := 0
-	// for k, v := range s.index {
-	// 	positionsArr[counter] = idPosPair{id: k, pos: v}
-	// 	counter++
-	// }
-	// sort.Slice(positionsArr, func(i, j int) bool {
-	// 	return positionsArr[i].pos < positionsArr[j].pos
-	// })
-	// last := positionsArr[len(positionsArr)-1]
-	// positionsArr[s.index[id]] = last
-	// s.index[last.id] = s.index[id]
-	// delete(s.index, id)
-	// s.WriteAtPos(&Vector{"", s.ReadAtPos(last.pos)}, s.index[last.id])
-	// s.size--
-	// err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
-	// if err != nil {
-	// 	panic(fmt.Errorf("error shrinking vectors file"))
-	// }
-	// index := s.indexFile.Name()
-	// os.Remove(index)
-	// s.indexFile, _ = os.Create(index)
-	// for _, k := range positionsArr[:s.size] {
-	// 	_, err = s.indexFile.WriteString(k.id + "\n")
-	// 	if err != nil {
-	// 		panic(fmt.Errorf("error updanting index file"))
-	// 	}
-	// }
+	positionsArr := make([]idPosPair, len(s.index))
+	counter := 0
+	for k, v := range s.index {
+		positionsArr[counter] = idPosPair{id: k, pos: v}
+		counter++
+	}
+	sort.Slice(positionsArr, func(i, j int) bool {
+		return positionsArr[i].pos < positionsArr[j].pos
+	})
+	last := positionsArr[len(positionsArr)-1]
+	positionsArr[s.index[id]] = last
+	s.index[last.id] = s.index[id]
+	delete(s.index, id)
+	s.WriteAtPos(s.ReadAtPos(last.pos), s.index[last.id])
+	s.size--
+	err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
+	if err != nil {
+		panic(fmt.Errorf("error shrinking vectors file"))
+	}
+	index := s.indexFile.Name()
+	os.Remove(index)
+	s.indexFile, _ = os.Create(index)
+	for _, k := range positionsArr[:s.size] {
+		_, err = s.indexFile.WriteString(k.id + "\n")
+		if err != nil {
+			panic(fmt.Errorf("error updating index file"))
+		}
+	}
 	return nil
 }
 
