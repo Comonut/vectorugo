@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os"
 	"sort"
@@ -38,9 +39,19 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 
 	var leaf Vector
 
+	var err error
+
 	for i := 0; i < len(inversePosIndex); i++ {
-		file.ReadAt(leafPosBytes, int64(i*8))
-		file.ReadAt(branchPosBytes, int64(i*8+4))
+		_, err = file.ReadAt(leafPosBytes, int64(i*8))
+		if err != nil {
+			fmt.Printf("error loading index leaf")
+			panic(err)
+		}
+		_, err = file.ReadAt(branchPosBytes, int64(i*8+4))
+		if err != nil {
+			fmt.Printf("error loading index branch")
+			panic(err)
+		}
 
 		leafPos = binary.LittleEndian.Uint32(leafPosBytes)
 		branchPos = binary.LittleEndian.Uint32(branchPosBytes)
@@ -74,7 +85,11 @@ func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
 
 	allBytes := append(leafBytes, branchBytes...)
 
-	index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	if err != nil {
+		fmt.Printf("error writing index changes to file")
+		panic(err)
+	}
 }
 
 func (index *Index) overrideLeafToFile(leaf Vector, branch *branch) {
@@ -90,7 +105,11 @@ func (index *Index) overrideLeafToFile(leaf Vector, branch *branch) {
 
 	allBytes := append(leafBytes, branchBytes...)
 
-	index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	if err != nil {
+		fmt.Printf("error writing index changes to file")
+		panic(err)
+	}
 }
 
 func (index *Index) transfer(old, new *branch) {
