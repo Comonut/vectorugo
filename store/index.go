@@ -92,26 +92,6 @@ func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
 	}
 }
 
-func (index *Index) overrideLeafToFile(leaf Vector, branch *branch) {
-	if index.file == nil {
-		return
-	}
-	leafPv := leaf.(*PersistantVector)
-
-	leafBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
-	branchBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(branchBytes, branch.id)
-
-	allBytes := append(leafBytes, branchBytes...)
-
-	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
-	if err != nil {
-		fmt.Printf("error writing index changes to file")
-		panic(err)
-	}
-}
-
 func (index *Index) transfer(old, new *branch) {
 	newLeafs := make([]Vector, 0)
 	updatedOldLeafs := make([]Vector, 0)
@@ -123,7 +103,7 @@ func (index *Index) transfer(old, new *branch) {
 			updatedOldLeafs = append(updatedOldLeafs, l)
 		} else {
 			newLeafs = append(newLeafs, l)
-			index.overrideLeafToFile(l, new)
+			index.writeLeafToFile(l, new)
 		}
 	}
 
