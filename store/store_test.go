@@ -75,3 +75,25 @@ func TestPersistantStore(t *testing.T) {
 	os.Remove("vectors.test")
 	os.Remove("search.test")
 }
+
+func TestPersistantStoreSerialization(t *testing.T) {
+	s := ConstructPersistantStore(uint32(32), "index.test", "vectors.test", "search.test")
+	var ones = Ones("ones", 32)
+	var zeros = Zeros("zeros", 32)
+	var random = Random("rand", 32)
+
+	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil || set(s, random.ID, random) != nil {
+		t.Error("error setting values")
+	}
+
+	l := LoadPersistantStore(uint32(32), "index.test", "vectors.test", "search.test")
+
+	loadedRands, err := l.Get("rand")
+	if !vectorEquals(loadedRands, random) || err != nil {
+		t.Error("Error deserializing saved values")
+	}
+
+	os.Remove("index.test")
+	os.Remove("vectors.test")
+	os.Remove("search.test")
+}
