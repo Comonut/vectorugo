@@ -1,8 +1,6 @@
 package store
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestSearch(t *testing.T) {
 	//train vectors
