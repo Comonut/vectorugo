@@ -24,9 +24,14 @@ func TestMain(t *testing.T) {
 }
 
 func testSetGet(t *testing.T) {
+
 	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" asdasd: [0, 0.0, 1, 3.14]}")))
 	if err != nil || resp.StatusCode != 400 {
 		t.Errorf("Expected bad request for malformed json")
+	}
+	resp, err = http.Get("http://localhost:8080/vectors")
+	if err != nil || resp.StatusCode != 400 {
+		t.Errorf("Expected 400 for vector request without specified ID")
 	}
 	resp, err = http.Get("http://localhost:8080/vectors?id=v1")
 	if err != nil || resp.StatusCode != 404 {
@@ -68,6 +73,25 @@ func testSearchController(t *testing.T) {
 	resp, err := http.Post("http://localhost:8080/vectors", "application/json", bytes.NewBuffer([]byte("{\"v1\" : [0, 0.0, 1, 3.14]}")))
 	if err != nil || resp.StatusCode != 200 {
 		t.Errorf("Error setting values %d", resp.StatusCode)
+	}
+
+	resp, err = http.Get("http://localhost:8080/search?id=v1")
+	if err != nil || resp.StatusCode != 400 {
+		t.Errorf("No K value defined - expected 400")
+	}
+
+	resp, err = http.Get("http://localhost:8080/search?k=5")
+	if err != nil || resp.StatusCode != 400 {
+		t.Errorf("No target defined - expected 400")
+	}
+	resp, err = http.Get("http://localhost:8080/search?id=v1&k=0.5")
+	if err != nil || resp.StatusCode != 400 {
+		t.Errorf("Accepted a non-integer K value - expected 400")
+	}
+
+	resp, err = http.Get("http://localhost:8080/search?id=v2&k=1")
+	if err != nil || resp.StatusCode != 404 {
+		t.Errorf("Tried KNN on non-existing vector - expected 404")
 	}
 
 	resp, err = http.Get("http://localhost:8080/search?id=v1&k=1")

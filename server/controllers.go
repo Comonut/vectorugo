@@ -110,8 +110,9 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 
 		kN, err := strconv.Atoi(k[0])
+		fmt.Print(kN)
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")
 			return
 		}
