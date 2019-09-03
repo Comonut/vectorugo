@@ -142,6 +142,57 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 			return
 		}
 
+	case "POST":
+		k, ok := r.URL.Query()["k"]
+		if !ok || len(k[0]) <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Request param 'k' is missing")
+			return
+		}
+
+		kN, err := strconv.Atoi(k[0])
+		fmt.Print(kN)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "k has to be an integer ")
+			return
+		}
+
+		b, err := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error reading request body: ", err)
+			return
+		}
+		var v []float64
+
+		err = json.Unmarshal(b, &v)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Invalid vector in body", err)
+			return
+		}
+
+		queryVector := &store.MemoryVector{ID: "", Array: v}
+		results, err := config.store.KNN(queryVector, kN)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error getting search results")
+			return
+		}
+		response := make([]SearchResponseModel, len(*results))
+		for i, result := range *results {
+			response[i] = SearchResponseModel{ID: result.Target.Name(), Distance: result.Distance}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error serializing response vector")
+			return
+		}
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprint(w, "Invalid request method - Only GET is supported")
