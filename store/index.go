@@ -6,6 +6,8 @@ import (
 	"math"
 	"os"
 	"sort"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Index struct {
@@ -44,12 +46,12 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 	for i := 0; i < len(inversePosIndex); i++ {
 		_, err = file.ReadAt(leafPosBytes, int64(i*8))
 		if err != nil {
-			fmt.Printf("error loading index leaf")
+			logrus.Error("error loading index leaf")
 			panic(err)
 		}
 		_, err = file.ReadAt(branchPosBytes, int64(i*8+4))
 		if err != nil {
-			fmt.Printf("error loading index branch")
+			logrus.Error("error loading index branch")
 			panic(err)
 		}
 
@@ -87,7 +89,7 @@ func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
 
 	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
 	if err != nil {
-		fmt.Printf("error writing index changes to file")
+		logrus.Error("error writing index changes to file")
 		panic(err)
 	}
 }

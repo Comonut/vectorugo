@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Comonut/vectorugo/store"
 )
 
@@ -27,10 +29,11 @@ func Init(size uint32, name string, persistance bool) {
 	http.HandleFunc("/vectors", config.handleVectors)
 	http.HandleFunc("/search", config.searchByID)
 
+	logrus.Info("Listening on :8080")
 	var err = http.ListenAndServe(":8080", nil)
 
 	if err != nil {
-		fmt.Print(err.Error())
+		logrus.Error(err.Error())
 	}
 }
 
@@ -110,7 +113,6 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 
 		kN, err := strconv.Atoi(k[0])
-		fmt.Print(kN)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")
@@ -151,7 +153,6 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 
 		kN, err := strconv.Atoi(k[0])
-		fmt.Print(kN)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")

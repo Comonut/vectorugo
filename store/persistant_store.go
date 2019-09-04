@@ -6,6 +6,8 @@ import (
 	"math"
 	"os"
 	"sort"
+
+	"github.com/sirupsen/logrus"
 )
 
 type PersistantStore struct {
@@ -33,7 +35,7 @@ func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile
 
 //Creates a new persistant store
 func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) *PersistantStore {
-	fmt.Println("New persistant storage initialized")
+	logrus.Info("New persistant storage initialized")
 	index, _ := os.Create(indexFile)
 	vectors, _ := os.Create(vectorsFile)
 	search, _ := os.Create(searchindexFile)
@@ -51,7 +53,7 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchin
 
 //Loads an existing store
 func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFiles string) *PersistantStore {
-	fmt.Println("Loading existant persistance storage")
+	logrus.Info("Loading existant persistance storage")
 	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
 	vectors, _ := os.OpenFile(vectorsFile, os.O_RDWR|os.O_CREATE, 0755)
 	search, _ := os.OpenFile(searchindexFiles, os.O_RDWR|os.O_CREATE, 0755)
@@ -66,7 +68,7 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFi
 		counter++
 	}
 
-	fmt.Println("Done!") //for each line in the id's list - map it to it's position
+	logrus.Info("Done!") //for each line in the id's list - map it to it's position
 	store := &PersistantStore{
 		dimension:   dimension,
 		index:       posIndex,
