@@ -120,6 +120,7 @@ func (index *Index) AddVector(v Vector) {
 			index.branches[len(index.branches)-1].id = pv.pos
 			index.writeLeafToFile(v, new)
 		}
+		index.size++
 		return
 	}
 
@@ -148,7 +149,7 @@ func (index *Index) AddVector(v Vector) {
 			index.writeLeafToFile(v, closest)
 		}
 	}
-	index.size += 1
+	index.size++
 }
 
 type BranchDistance struct {

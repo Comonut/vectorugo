@@ -19,7 +19,10 @@ func TestSearch(t *testing.T) {
 		t.Error("error setting values")
 	}
 
-	neighbors, _ := s.KNN(v1, 5)
+	neighbors, err := s.KNN(v1, 5)
+	if err != nil {
+		t.Error(err)
+	}
 	if (*neighbors)[0].Target != v1 && (*neighbors)[0].Target != v2 {
 		t.Error("wrong first value")
 	}
