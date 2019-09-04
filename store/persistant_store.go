@@ -150,5 +150,5 @@ func (s *PersistantStore) Delete(id string) error {
 }
 
 func (s *PersistantStore) KNN(vector Vector, k int) (*[]Distance, error) {
-	return s.seachIndex.IndexKNN(k, vector), nil
+	return s.seachIndex.IndexKNN(k, vector)
 }

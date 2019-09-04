@@ -120,6 +120,7 @@ func (index *Index) AddVector(v Vector) {
 			index.branches[len(index.branches)-1].id = pv.pos
 			index.writeLeafToFile(v, new)
 		}
+		index.size++
 		return
 	}
 
@@ -148,7 +149,7 @@ func (index *Index) AddVector(v Vector) {
 			index.writeLeafToFile(v, closest)
 		}
 	}
-	index.size += 1
+	index.size++
 }
 
 type BranchDistance struct {
@@ -156,7 +157,11 @@ type BranchDistance struct {
 	Distance float64 //Distance
 }
 
-func (index *Index) IndexKNN(k int, v Vector) *[]Distance {
+func (index *Index) IndexKNN(k int, v Vector) (*[]Distance, error) {
+	if int64(k) > index.size {
+		return nil, fmt.Errorf("can't retrieve %d results - only %d are indexed", k, index.size)
+	}
+
 	sortedBranches := make([]BranchDistance, len(index.branches))
 
 	//loop through map, calculate distance for each vector, append result in return array
@@ -184,6 +189,6 @@ func (index *Index) IndexKNN(k int, v Vector) *[]Distance {
 		return results[i].Distance < results[j].Distance
 	})
 	results = results[:k]
-	return &results
+	return &results, nil
 
 }

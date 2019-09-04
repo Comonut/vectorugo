@@ -89,6 +89,11 @@ func testSearchController(t *testing.T) {
 		t.Errorf("Accepted a non-integer K value - expected 400")
 	}
 
+	resp, err = http.Get("http://localhost:8080/search?id=v1&k=5")
+	if err != nil || resp.StatusCode != 500 {
+		t.Errorf("Expected 400 for k larger than store in GET")
+	}
+
 	resp, err = http.Get("http://localhost:8080/search?id=v2&k=1")
 	if err != nil || resp.StatusCode != 404 {
 		t.Errorf("Tried KNN on non-existing vector - expected 404")
@@ -102,15 +107,53 @@ func testSearchController(t *testing.T) {
 	b, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		t.Error("could not read response")
+		t.Error("could not read GET response")
 	}
 	var v []SearchResponseModel
 	if json.Unmarshal(b, &v) != nil {
-		t.Error("could not parse response from get")
+		t.Error("could not parse response from GET")
 	}
 
 	if v[0].ID != "v1" || v[0].Distance != 0 {
-		t.Error("wrong result")
+		t.Error("wrong result on GET")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search?k=1", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, asd]")))
+	if err != nil || resp.StatusCode != 400 {
+		t.Error("Expected 400 for invalid vector query")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search?k=asd", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
+	if err != nil || resp.StatusCode != 400 {
+		t.Error("Expected 400 for invalid k value")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
+	if err != nil || resp.StatusCode != 400 {
+		t.Error("Expected 400 for missing k value")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search?k=5", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
+	if err != nil || resp.StatusCode != 500 {
+		t.Error("Expected 400 for k larger than store in POST")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search?k=1", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
+	if err != nil || resp.StatusCode != 200 {
+		t.Errorf("Error getting values %d", resp.StatusCode)
+	}
+
+	b, err = ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		t.Error("could not read POST response")
+	}
+	if json.Unmarshal(b, &v) != nil {
+		t.Error("could not parse response from POST")
+	}
+
+	if v[0].ID != "v1" || v[0].Distance != 1 {
+		t.Error("wrong result on POST")
 	}
 
 }
