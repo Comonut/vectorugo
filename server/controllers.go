@@ -38,6 +38,7 @@ func Init(size uint32, name string, persistance bool) {
 }
 
 func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *http.Request) {
+	logrus.Info(r)
 	switch r.Method {
 	case "GET":
 		key, ok := r.URL.Query()["id"]
@@ -95,6 +96,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 }
 
 func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http.Request) {
+	logrus.Info(r)
 	switch r.Method {
 	case "GET":
 		key, ok := r.URL.Query()["id"]
