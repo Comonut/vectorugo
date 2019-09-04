@@ -89,6 +89,11 @@ func testSearchController(t *testing.T) {
 		t.Errorf("Accepted a non-integer K value - expected 400")
 	}
 
+	resp, err = http.Get("http://localhost:8080/search?id=v1&k=5")
+	if err != nil || resp.StatusCode != 500 {
+		t.Errorf("Expected 400 for k larger than store in GET")
+	}
+
 	resp, err = http.Get("http://localhost:8080/search?id=v2&k=1")
 	if err != nil || resp.StatusCode != 404 {
 		t.Errorf("Tried KNN on non-existing vector - expected 404")
@@ -126,6 +131,11 @@ func testSearchController(t *testing.T) {
 	resp, err = http.Post("http://localhost:8080/search", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
 	if err != nil || resp.StatusCode != 400 {
 		t.Error("Expected 400 for missing k value")
+	}
+
+	resp, err = http.Post("http://localhost:8080/search?k=5", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))
+	if err != nil || resp.StatusCode != 500 {
+		t.Error("Expected 400 for k larger than store in POST")
 	}
 
 	resp, err = http.Post("http://localhost:8080/search?k=1", "application/json", bytes.NewBuffer([]byte("[1, 0.0, 1, 3.14]")))

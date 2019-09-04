@@ -42,5 +42,5 @@ func (s *SimpleMapStore) Delete(id string) error {
 //KNN returns the K nearest neighbours to a given vector
 //This vector does not have to be inside the store.
 func (s *SimpleMapStore) KNN(vector Vector, k int) (*[]Distance, error) {
-	return s.index.IndexKNN(k, vector), nil
+	return s.index.IndexKNN(k, vector)
 }
