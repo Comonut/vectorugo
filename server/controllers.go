@@ -14,9 +14,15 @@ type controllerConfiguration struct {
 	store store.Store
 }
 
-func Init(size uint32, name string) {
-	var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
-	var config = controllerConfiguration{store}
+func Init(size uint32, name string, persistance bool) {
+	// var store, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin")
+	var s store.Store
+	if persistance {
+		s, _ = store.NewPersitantStore(size, name+"_index.bin", name+"_vectors.bin", name+"_search.bin")
+	} else {
+		s = store.NewSimpleMapStore()
+	}
+	var config = controllerConfiguration{s}
 
 	http.HandleFunc("/vectors", config.handleVectors)
 	http.HandleFunc("/search", config.searchByID)
@@ -70,7 +76,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			return
 		}
 		for k, v := range v {
-			err = config.store.Set(k, &store.Vector{ID: k, Values: v})
+			err = config.store.Set(k, &store.MemoryVector{ID: k, Array: v})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, "Error writing to store", err)
@@ -104,8 +110,9 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 
 		kN, err := strconv.Atoi(k[0])
+		fmt.Print(kN)
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")
 			return
 		}
@@ -125,7 +132,58 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		}
 		response := make([]SearchResponseModel, len(*results))
 		for i, result := range *results {
-			response[i] = SearchResponseModel{ID: result.Target.ID, Distance: result.Distance}
+			response[i] = SearchResponseModel{ID: result.Target.Name(), Distance: result.Distance}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error serializing response vector")
+			return
+		}
+
+	case "POST":
+		k, ok := r.URL.Query()["k"]
+		if !ok || len(k[0]) <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Request param 'k' is missing")
+			return
+		}
+
+		kN, err := strconv.Atoi(k[0])
+		fmt.Print(kN)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "k has to be an integer ")
+			return
+		}
+
+		b, err := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error reading request body: ", err)
+			return
+		}
+		var v []float64
+
+		err = json.Unmarshal(b, &v)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "Invalid vector in body", err)
+			return
+		}
+
+		queryVector := &store.MemoryVector{ID: "", Array: v}
+		results, err := config.store.KNN(queryVector, kN)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Error getting search results")
+			return
+		}
+		response := make([]SearchResponseModel, len(*results))
+		for i, result := range *results {
+			response[i] = SearchResponseModel{ID: result.Target.Name(), Distance: result.Distance}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(response)

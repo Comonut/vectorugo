@@ -5,18 +5,11 @@ import (
 	"testing"
 )
 
-func TestSum(t *testing.T) {
-	var onesVector = Ones("", 32)
-	if onesVector.Sum() != 32 {
-		t.Errorf("Wrong sum")
-	}
-}
-
-func set(s Store, id string, vector *Vector) error {
+func set(s Store, id string, vector Vector) error {
 	return s.Set(id, vector)
 }
 
-func get(s Store, id string) (*Vector, error) {
+func get(s Store, id string) (Vector, error) {
 	return s.Get(id)
 }
 
@@ -24,15 +17,15 @@ func del(s Store, id string) error {
 	return s.Delete(id)
 }
 
-func vectorEquals(this, other *Vector) bool {
-	if this.ID != other.ID {
+func vectorEquals(this, other Vector) bool {
+	if this.Name() != other.Name() {
 		return false
 	}
-	if len(this.Values) != len(other.Values) {
+	if len(*this.Values()) != len(*other.Values()) {
 		return false
 	}
-	for i, e := range this.Values {
-		if e != (*other).Values[i] {
+	for i, e := range *this.Values() {
+		if e != (*other.Values())[i] {
 			return false
 		}
 	}
@@ -72,12 +65,35 @@ func testStore(s Store, t *testing.T) {
 
 func TestSimpleMapStore(t *testing.T) {
 	s := NewSimpleMapStore()
-	testStore(&s, t)
+	testStore(s, t)
 }
 
 func TestPersistantStore(t *testing.T) {
-	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test")
+	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test", "search.test")
 	testStore(s, t)
 	os.Remove("index.test")
 	os.Remove("vectors.test")
+	os.Remove("search.test")
+}
+
+func TestPersistantStoreSerialization(t *testing.T) {
+	s := ConstructPersistantStore(uint32(32), "index.test", "vectors.test", "search.test")
+	var ones = Ones("ones", 32)
+	var zeros = Zeros("zeros", 32)
+	var random = Random("rand", 32)
+
+	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil || set(s, random.ID, random) != nil {
+		t.Error("error setting values")
+	}
+
+	l := LoadPersistantStore(uint32(32), "index.test", "vectors.test", "search.test")
+
+	loadedRands, err := l.Get("rand")
+	if !vectorEquals(loadedRands, random) || err != nil {
+		t.Error("Error deserializing saved values")
+	}
+
+	os.Remove("index.test")
+	os.Remove("vectors.test")
+	os.Remove("search.test")
 }

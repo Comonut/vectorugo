@@ -54,8 +54,8 @@ func BytesToArray(arr []byte) []float64 {
 }
 
 //Writes the values of a vector in a given position in the file
-func (s *PersistantStore) WriteAtPos(v *Vector, pos uint32) {
-	bytes := ArrToBytes(v.Values)
+func (s *PersistantStore) WriteAtPos(v []float64, pos uint32) {
+	bytes := ArrToBytes(v)
 	_, err := s.vectorsFile.WriteAt(bytes, int64(pos*8*s.dimension))
 	if err != nil {
 		panic(fmt.Errorf("Error writing in vectors file"))
