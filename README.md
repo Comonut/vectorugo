@@ -1,4 +1,4 @@
-# vectorugo [![Build Status](https://travis-ci.com/Comonut/vectorugo.svg?branch=master)](https://travis-ci.com/Comonut/vectorugo)
+# vectorugo [![Build Status](https://travis-ci.com/Comonut/vectorugo.svg?branch=master)](https://travis-ci.com/Comonut/vectorugo) [![codecov](https://codecov.io/gh/Comonut/vectorugo/branch/master/graph/badge.svg)](https://codecov.io/gh/Comonut/vectorugo)
 
 Description
 ===============
@@ -60,6 +60,8 @@ Here is the result of `/search?k=5&id=news` on a store containing 30k word embed
    }
 ]
 ```
+
+Alternatevely you can also use KNN on an uninserted vector by using a POST on `/search` and putting the target vector in the body as a coma separated array - ex. body:`[0.0,1.2,3]`
 
 ### Disclaimer
 While this projects can be useful, it's far from being production grade - it is still a WIP and there are a couple of bugs. 
