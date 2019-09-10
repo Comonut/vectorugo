@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Comonut/vectorugo/store"
 )
 
@@ -27,10 +29,11 @@ func Init(size uint32, name string, persistance bool) {
 	http.HandleFunc("/vectors", config.handleVectors)
 	http.HandleFunc("/search", config.searchByID)
 
+	logrus.Info("Listening on :8080")
 	var err = http.ListenAndServe(":8080", nil)
 
 	if err != nil {
-		fmt.Print(err.Error())
+		logrus.Error(err.Error())
 	}
 }
 
@@ -42,6 +45,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 		if !ok || len(key[0]) <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Request param 'id' is missing")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -49,15 +53,18 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, "Value not present in store: ")
+			LogRequest(r, http.StatusNotFound)
 			return
 		}
 		err = json.NewEncoder(w).Encode(value)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error serializing response vector")
+			LogRequest(r, http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		LogRequest(r, http.StatusOK)
 
 	case "POST":
 		b, err := ioutil.ReadAll(r.Body)
@@ -65,6 +72,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error reading request body: ", err)
+			LogRequest(r, http.StatusInternalServerError)
 			return
 		}
 		var v map[string][]float64
@@ -73,6 +81,7 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Invalid json format:	", err)
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 		for k, v := range v {
@@ -80,15 +89,19 @@ func (config *controllerConfiguration) handleVectors(w http.ResponseWriter, r *h
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, "Error writing to store", err)
+				LogRequest(r, http.StatusInternalServerError)
 				return
 			}
 		}
+		LogRequest(r, http.StatusOK)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprint(w, "Invalid request method - Only GET and POST are supported")
+		LogRequest(r, http.StatusMethodNotAllowed)
 
 	}
+
 }
 
 func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +112,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if !ok || len(key[0]) <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Request param 'id' is missing")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -106,14 +120,15 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if !ok || len(k[0]) <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Request param 'k' is missing")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
 		kN, err := strconv.Atoi(k[0])
-		fmt.Print(kN)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -121,6 +136,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, "Value not present in store: ")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -128,6 +144,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error getting search results")
+			LogRequest(r, http.StatusInternalServerError)
 			return
 		}
 		response := make([]SearchResponseModel, len(*results))
@@ -139,22 +156,25 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error serializing response vector")
+			LogRequest(r, http.StatusInternalServerError)
 			return
 		}
+		LogRequest(r, http.StatusOK)
 
 	case "POST":
 		k, ok := r.URL.Query()["k"]
 		if !ok || len(k[0]) <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Request param 'k' is missing")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
 		kN, err := strconv.Atoi(k[0])
-		fmt.Print(kN)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "k has to be an integer ")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -163,6 +183,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error reading request body: ", err)
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 		var v []float64
@@ -171,6 +192,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, "Invalid vector in body", err)
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 
@@ -179,6 +201,7 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error getting search results")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
 		response := make([]SearchResponseModel, len(*results))
@@ -190,12 +213,16 @@ func (config *controllerConfiguration) searchByID(w http.ResponseWriter, r *http
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Error serializing response vector")
+			LogRequest(r, http.StatusBadRequest)
 			return
 		}
+		LogRequest(r, http.StatusOK)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprint(w, "Invalid request method - Only GET is supported")
+		LogRequest(r, http.StatusBadRequest)
 
 	}
+
 }
