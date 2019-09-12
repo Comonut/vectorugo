@@ -12,7 +12,7 @@ func LogRequest(request *http.Request, response int) {
 	ip := request.RemoteAddr
 
 	if response >= 500 && response < 600 {
-		logrus.WithFields(logrus.Fields{"method": method, "endpoint": endpoint, "ip": ip, "response": response}).Error("Request sucessfully handled")
+		logrus.WithFields(logrus.Fields{"method": method, "endpoint": endpoint, "ip": ip, "response": response}).Error("Request failed due to server side error")
 		return
 	}
 
@@ -21,6 +21,6 @@ func LogRequest(request *http.Request, response int) {
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{"method": method, "endpoint": endpoint, "ip": ip, "response": response}).Info("Request failed due to server side error")
+	logrus.WithFields(logrus.Fields{"method": method, "endpoint": endpoint, "ip": ip, "response": response}).Info("Request sucessfully handled")
 
 }
