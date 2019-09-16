@@ -14,10 +14,12 @@ import (
 //FOR PREVENTING COMPILER OPTIMIZATIONS
 var e error
 var f Vector
+var d *[]Distance
 
 func BenchmarkInsertMemoryStore(b *testing.B) {
 	store := NewSimpleMapStore()
 	var err error
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		err = store.Set(strconv.Itoa(n), Random(strconv.Itoa(n), 256))
 	}
@@ -30,6 +32,7 @@ func BenchmarkGetMemoryStore(b *testing.B) {
 		_ = store.Set(strconv.Itoa(n), Random(strconv.Itoa(n), 256))
 	}
 	var err error
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		f, err = store.Get(strconv.Itoa(rand.Intn(100)))
 	}
@@ -39,6 +42,7 @@ func BenchmarkGetMemoryStore(b *testing.B) {
 func BenchmarkInsertPersistantStore(b *testing.B) {
 	store, _ := NewPersitantStore(256, "benchmark_index.bin", "benchmark_vectors.bin", "benchmark_search.bin")
 	var err error
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		err = store.Set(strconv.Itoa(n), Random(strconv.Itoa(n), 256))
 	}
@@ -55,6 +59,7 @@ func BenchmarkGetPersistantStore(b *testing.B) {
 	}
 	var err error
 	var v Vector
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		v, err = store.Get(strconv.Itoa(rand.Intn(100)))
 	}
@@ -62,5 +67,23 @@ func BenchmarkGetPersistantStore(b *testing.B) {
 	f = v
 	os.Remove("benchmark_index.bin")
 	os.Remove("benchmark_vectors.bin")
-	os.Remove("benchmakr_search.bin")
+	os.Remove("benchmark_search.bin")
+}
+
+func BenchmarkKNNsearch(b *testing.B) {
+	store, _ := NewPersitantStore(256, "benchmark_index.bin", "benchmark_vectors.bin", "benchmark_search.bin")
+	for n := 0; n < 100; n++ {
+		_ = store.Set(strconv.Itoa(n), Random(strconv.Itoa(n), 256))
+	}
+	var err error
+	var v Vector
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		d, err = store.KNN(Random("testV", 256), 5)
+	}
+	e = err
+	f = v
+	os.Remove("benchmark_index.bin")
+	os.Remove("benchmark_vectors.bin")
+	os.Remove("benchmark_search.bin")
 }
