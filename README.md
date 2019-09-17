@@ -1,4 +1,4 @@
-# vectorugo [![Build Status](https://travis-ci.com/Comonut/vectorugo.svg?branch=master)](https://travis-ci.com/Comonut/vectorugo) [![codecov](https://codecov.io/gh/Comonut/vectorugo/branch/master/graph/badge.svg)](https://codecov.io/gh/Comonut/vectorugo)
+# vectorugo [![Build Status](https://github.com/Comonut/vectorugo/workflows/Go/badge.svg)](https://github.com/Comonut/vectorugo/actions) [![codecov](https://codecov.io/gh/Comonut/vectorugo/branch/master/graph/badge.svg)](https://codecov.io/gh/Comonut/vectorugo)
 
 Description
 ===============
