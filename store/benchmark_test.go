@@ -9,7 +9,6 @@ import (
 
 // STORAGE BENCHMARKS
 // YOU CAN RUN WITH 'go test ./store -bench=.'
-// TODO: SEARCH BENCHMARKS
 
 //FOR PREVENTING COMPILER OPTIMIZATIONS
 var e error
@@ -76,13 +75,13 @@ func BenchmarkKNNsearch(b *testing.B) {
 		_ = store.Set(strconv.Itoa(n), Random(strconv.Itoa(n), 256))
 	}
 	var err error
-	var v Vector
+	var d2 *[]Distance
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		d, err = store.KNN(Random("testV", 256), 5)
+		d2, err = store.KNN(Random("testV", 256), 5)
 	}
 	e = err
-	f = v
+	d = d2
 	os.Remove("benchmark_index.bin")
 	os.Remove("benchmark_vectors.bin")
 	os.Remove("benchmark_search.bin")
