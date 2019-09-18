@@ -38,7 +38,6 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchin
 	logrus.Info("New persistant storage initialized")
 	index, _ := os.Create(indexFile)
 	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
-	search, _ := os.Create(searchindexFile)
 	store := &PersistantStore{
 		dimension:   dimension,
 		index:       make(map[string]uint32),
@@ -47,7 +46,7 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchin
 		vectorsFile: vectors,
 		seachIndex:  nil}
 
-	store.seachIndex = NewIndex(search, store)
+	store.seachIndex = NewIndex(vectors, store)
 	return store
 }
 

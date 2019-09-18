@@ -4,44 +4,48 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
 	"sort"
+
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 
 	"github.com/sirupsen/logrus"
 )
+
+const mask = "@@"
 
 type Index struct {
 	maxlen   int
 	size     int64
 	branches []*branch
-	file     *os.File
+	db       *leveldb.DB
 }
 
 type branch struct {
 	pos   Vector
-	id    uint32
 	leafs []Vector
 }
 
-func NewIndex(file *os.File, store Store) *Index {
-	if file != nil {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
+func NewIndex(db *leveldb.DB, store Store) *Index {
+	if db != nil {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), db: db}
 	} else {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), db: nil}
 	}
 }
-func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantStore) *Index {
+func LoadIndex(db *leveldb.DB, s *PersistantStore) *Index {
 	branchesArr := make([]*branch, 0)
 	branchesMap := make(map[uint32]int)
-	var leafPosBytes = make([]byte, 4)
-	var branchPosBytes = make([]byte, 4)
-
-	var leafPos uint32
-	var branchPos uint32
-
 	var leaf Vector
 
 	var err error
+
+	iter := db.NewIterator(util.BytesPrefix([]byte("@@")), nil)
+	for iter.Next() {
+		// Use key/value.
+		leaf := 
+	}
+	iter.Release()
 
 	for i := 0; i < len(inversePosIndex); i++ {
 		_, err = file.ReadAt(leafPosBytes, int64(i*8))
@@ -66,8 +70,7 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 			branchesArr[branchID].leafs = append(branchesArr[branchID].leafs, leaf)
 		} else {
 			branchesMap[branchPos] = len(branchesArr)
-			bytes, _ := s.vectorsFile.Get([]byte(inversePosIndex[branchPos]), nil)
-			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: BytesToArray(bytes)}, id: branchPos, leafs: []Vector{leaf}})
+			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: s.ReadAtPos(branchPos)}, id: branchPos, leafs: []Vector{leaf}})
 		}
 	}
 
@@ -76,19 +79,13 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 }
 
 func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
-	if index.file == nil {
+	if index.db == nil {
 		return
 	}
-	leafPv := leaf.(*PersistantVector)
+	leafBytes := append([]byte(mask), []byte(leaf.Name())...)
+	branchBytes := append([]byte(mask), []byte(branch.pos.Name())...)
 
-	leafBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
-	branchBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(branchBytes, branch.id)
-
-	allBytes := append(leafBytes, branchBytes...)
-
-	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	err := index.db.Put(leafBytes, branchBytes, nil)
 	if err != nil {
 		logrus.Error("error writing index changes to file")
 		panic(err)
@@ -116,11 +113,9 @@ func (index *Index) transfer(old, new *branch) {
 
 func (index *Index) AddVector(v Vector) {
 	if len(index.branches) == 0 {
-		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}}
 		index.branches = append(index.branches, new)
-		if index.file != nil {
-			pv := v.(*PersistantVector)
-			index.branches[len(index.branches)-1].id = pv.pos
+		if index.db != nil {
 			index.writeLeafToFile(v, new)
 		}
 		index.size++
@@ -138,17 +133,15 @@ func (index *Index) AddVector(v Vector) {
 	}
 
 	if len(closest.leafs) == index.maxlen {
-		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}}
 		index.branches = append(index.branches, new)
-		if index.file != nil {
-			pv := v.(*PersistantVector)
-			index.branches[len(index.branches)-1].id = pv.pos
+		if index.db != nil {
 			index.writeLeafToFile(v, new)
 		}
 		index.transfer(closest, index.branches[len(index.branches)-1])
 	} else {
 		closest.leafs = append(closest.leafs, v)
-		if index.file != nil {
+		if index.db != nil {
 			index.writeLeafToFile(v, closest)
 		}
 	}
