@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
 	"sort"
@@ -23,6 +22,7 @@ type Index struct {
 
 type branch struct {
 	pos   Vector
+	id    string
 	leafs []Vector
 }
 
@@ -35,46 +35,35 @@ func NewIndex(db *leveldb.DB, store Store) *Index {
 }
 func LoadIndex(db *leveldb.DB, s *PersistantStore) *Index {
 	branchesArr := make([]*branch, 0)
-	branchesMap := make(map[uint32]int)
-	var leaf Vector
+	branchesMap := make(map[string]int)
 
-	var err error
+	var leaf Vector
+	var branchCache *MemoryVector
+	var arrCache []float64
+
+	size := int64(0)
 
 	iter := db.NewIterator(util.BytesPrefix([]byte("@@")), nil)
 	for iter.Next() {
 		// Use key/value.
-		leaf := 
-	}
-	iter.Release()
+		size++
+		leafID := string(iter.Key())[2:]
+		branchID := string(iter.Value())[2:]
 
-	for i := 0; i < len(inversePosIndex); i++ {
-		_, err = file.ReadAt(leafPosBytes, int64(i*8))
-		if err != nil {
-			logrus.Error("error loading index leaf")
-			panic(err)
-		}
-		_, err = file.ReadAt(branchPosBytes, int64(i*8+4))
-		if err != nil {
-			logrus.Error("error loading index branch")
-			panic(err)
-		}
-
-		leafPos = binary.LittleEndian.Uint32(leafPosBytes)
-		branchPos = binary.LittleEndian.Uint32(branchPosBytes)
-
-		leaf = &PersistantVector{inversePosIndex[leafPos], leafPos, s}
-
-		branchID, ok := branchesMap[branchPos]
-
+		leaf = &PersistantVector{ID: leafID, pos: 0, store: s}
+		branchPos, ok := branchesMap[branchID]
 		if ok {
-			branchesArr[branchID].leafs = append(branchesArr[branchID].leafs, leaf)
+			branchesArr[branchPos].leafs = append(branchesArr[branchPos].leafs, leaf)
 		} else {
-			branchesMap[branchPos] = len(branchesArr)
-			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: s.ReadAtPos(branchPos)}, id: branchPos, leafs: []Vector{leaf}})
+			branchesMap[branchID] = len(branchesArr)
+			arrCache, _ = s.ReadVector(branchID)
+			branchCache = &MemoryVector{ID: branchID, Array: arrCache}
+			branchesArr = append(branchesArr, &branch{pos: branchCache, id: branchID, leafs: []Vector{leaf}})
 		}
 	}
 
-	return &Index{maxlen: int(2 * (math.Sqrt(float64(len(inversePosIndex))))), size: int64(len(inversePosIndex)), branches: branchesArr, file: file}
+	iter.Release()
+	return &Index{maxlen: int(2 * (math.Sqrt(float64(size)))), size: size, branches: branchesArr, db: db}
 
 }
 

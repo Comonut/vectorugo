@@ -55,7 +55,6 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFi
 	logrus.Info("Loading existant persistance storage")
 	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
 	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
-	search, _ := os.OpenFile(searchindexFiles, os.O_RDWR|os.O_CREATE, 0755)
 	scanner := bufio.NewScanner(index)
 	posIndex := make(map[string]uint32)        //id to pos index
 	inversePosIndex := make(map[uint32]string) //pos to id index
@@ -76,7 +75,7 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFi
 		seachIndex:  nil,
 		vectorsFile: vectors}
 
-	store.seachIndex = LoadIndex(search, inversePosIndex, store)
+	store.seachIndex = LoadIndex(vectors, store)
 	return store
 }
 
