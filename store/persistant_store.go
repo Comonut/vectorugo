@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
 
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type PersistantStore struct {
@@ -15,8 +15,8 @@ type PersistantStore struct {
 	index       map[string]uint32 //maps id's to positions in the file
 	size        uint32            //number of vectors inside
 	seachIndex  *Index
-	indexFile   *os.File //file that contains the mapping from id to position in vectors file
-	vectorsFile *os.File //vectors file (see encodings.go)
+	indexFile   *os.File    //file that contains the mapping from id to position in vectors file
+	vectorsFile *leveldb.DB //vectors file (see encodings.go)
 }
 
 func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) (*PersistantStore, error) {
@@ -37,7 +37,7 @@ func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile
 func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) *PersistantStore {
 	logrus.Info("New persistant storage initialized")
 	index, _ := os.Create(indexFile)
-	vectors, _ := os.Create(vectorsFile)
+	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
 	search, _ := os.Create(searchindexFile)
 	store := &PersistantStore{
 		dimension:   dimension,
@@ -55,11 +55,11 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchin
 func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFiles string) *PersistantStore {
 	logrus.Info("Loading existant persistance storage")
 	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
-	vectors, _ := os.OpenFile(vectorsFile, os.O_RDWR|os.O_CREATE, 0755)
+	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
 	search, _ := os.OpenFile(searchindexFiles, os.O_RDWR|os.O_CREATE, 0755)
 	scanner := bufio.NewScanner(index)
 	posIndex := make(map[string]uint32)        //id to pos index
-	inversePosIndex := make(map[uint32]string) //id to pos index
+	inversePosIndex := make(map[uint32]string) //pos to id index
 	counter := uint32(0)
 	for scanner.Scan() {
 		name := scanner.Text()
@@ -86,11 +86,11 @@ func (s *PersistantStore) Set(id string, vector Vector) error {
 	persistant := &PersistantVector{ID: vector.Name(), pos: 0, store: s}
 	if pos, ok := s.index[id]; ok { //if this id is indexed
 		persistant.pos = pos
-		s.WriteAtPos(*vector.Values(), pos) //write at vector's position in file
+		s.WriteVector(vector.Values(), vector.Name())
 	} else {
 		persistant.pos = s.size
-		s.WriteAtPos(*vector.Values(), s.size)       //if it doesn't exist, write at end of vector's file
-		_, err := s.indexFile.WriteString(id + "\n") //add it to list of ids
+		s.WriteVector(vector.Values(), vector.Name())
+		_, err := s.indexFile.WriteString(id + "\n")
 		if err != nil {
 			return err
 		}
@@ -104,51 +104,19 @@ func (s *PersistantStore) Set(id string, vector Vector) error {
 }
 
 func (s *PersistantStore) Get(id string) (Vector, error) {
-	pos, ok := s.index[id]
-	if !ok {
-		return nil, fmt.Errorf("value not present")
-	}
 
+	values, err := s.ReadVector(id)
+
+	if err != nil {
+		return nil, err
+	}
 	return &MemoryVector{
 		ID:    id,
-		Array: s.ReadAtPos(pos)}, nil
-}
-
-type idPosPair struct {
-	id  string
-	pos uint32
+		Array: values}, nil
 }
 
 func (s *PersistantStore) Delete(id string) error {
-	positionsArr := make([]idPosPair, len(s.index))
-	counter := 0
-	for k, v := range s.index {
-		positionsArr[counter] = idPosPair{id: k, pos: v}
-		counter++
-	}
-	sort.Slice(positionsArr, func(i, j int) bool {
-		return positionsArr[i].pos < positionsArr[j].pos
-	})
-	last := positionsArr[len(positionsArr)-1]
-	positionsArr[s.index[id]] = last
-	s.index[last.id] = s.index[id]
-	delete(s.index, id)
-	s.WriteAtPos(s.ReadAtPos(last.pos), s.index[last.id])
-	s.size--
-	err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
-	if err != nil {
-		panic(fmt.Errorf("error shrinking vectors file"))
-	}
-	index := s.indexFile.Name()
-	os.Remove(index)
-	s.indexFile, _ = os.Create(index)
-	for _, k := range positionsArr[:s.size] {
-		_, err = s.indexFile.WriteString(k.id + "\n")
-		if err != nil {
-			panic(fmt.Errorf("error updating index file"))
-		}
-	}
-	return nil
+	return s.vectorsFile.Delete([]byte(id), nil)
 }
 
 func (s *PersistantStore) KNN(vector Vector, k int) (*[]Distance, error) {

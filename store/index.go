@@ -66,7 +66,8 @@ func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantSt
 			branchesArr[branchID].leafs = append(branchesArr[branchID].leafs, leaf)
 		} else {
 			branchesMap[branchPos] = len(branchesArr)
-			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: s.ReadAtPos(branchPos)}, id: branchPos, leafs: []Vector{leaf}})
+			bytes, _ := s.vectorsFile.Get([]byte(inversePosIndex[branchPos]), nil)
+			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: BytesToArray(bytes)}, id: branchPos, leafs: []Vector{leaf}})
 		}
 	}
 

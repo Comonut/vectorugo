@@ -30,7 +30,8 @@ type PersistantVector struct {
 }
 
 func (v *PersistantVector) Values() *[]float64 {
-	values := v.store.ReadAtPos(v.pos)
+	bytes, _ := v.store.vectorsFile.Get([]byte(v.ID), nil)
+	values := BytesToArray(bytes)
 	return &values
 }
 func (v *PersistantVector) Name() string {

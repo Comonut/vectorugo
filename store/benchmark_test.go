@@ -47,7 +47,7 @@ func BenchmarkInsertPersistantStore(b *testing.B) {
 	}
 	e = err
 	os.Remove("benchmark_index.bin")
-	os.Remove("benchmark_vectors.bin")
+	os.RemoveAll("benchmark_vectors.bin")
 	os.Remove("benchmark_search.bin")
 }
 
@@ -65,7 +65,7 @@ func BenchmarkGetPersistantStore(b *testing.B) {
 	e = err
 	f = v
 	os.Remove("benchmark_index.bin")
-	os.Remove("benchmark_vectors.bin")
+	os.RemoveAll("benchmark_vectors.bin")
 	os.Remove("benchmark_search.bin")
 }
 
@@ -83,6 +83,6 @@ func BenchmarkKNNsearch(b *testing.B) {
 	e = err
 	d = d2
 	os.Remove("benchmark_index.bin")
-	os.Remove("benchmark_vectors.bin")
+	os.RemoveAll("benchmark_vectors.bin")
 	os.Remove("benchmark_search.bin")
 }
