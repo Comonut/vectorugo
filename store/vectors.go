@@ -25,7 +25,6 @@ func (v *MemoryVector) Name() string {
 
 type PersistantVector struct {
 	ID    string
-	pos   uint32
 	store *PersistantStore
 }
 

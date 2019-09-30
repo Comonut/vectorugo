@@ -1,8 +1,6 @@
 package store
 
 import (
-	"bufio"
-	"fmt"
 	"math"
 	"os"
 
@@ -11,23 +9,18 @@ import (
 )
 
 type PersistantStore struct {
-	dimension   uint32            //size of vectors
-	index       map[string]uint32 //maps id's to positions in the file
-	size        uint32            //number of vectors inside
+	dimension   uint32 //size of vectors
+	size        uint32 //number of vectors inside
+	keys        map[string]bool
 	seachIndex  *Index
-	indexFile   *os.File    //file that contains the mapping from id to position in vectors file
 	vectorsFile *leveldb.DB //vectors file (see encodings.go)
 }
 
 func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) (*PersistantStore, error) {
-	_, err1 := os.Stat(indexFile)
-	_, err2 := os.Stat(indexFile)
-
+	_, err1 := os.Stat(vectorsFile)
 	// If index doesn't exist
-	if os.IsNotExist(err1) && os.IsNotExist(err2) {
+	if os.IsNotExist(err1) {
 		return ConstructPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
-	} else if os.IsNotExist(err1) || os.IsNotExist(err2) { //If one of the two files exists - something is wrong
-		return nil, fmt.Errorf("Index or vectors file exists, but other one doesn't")
 	} else { //if they don't exist create a new storage
 		return LoadPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
 	}
@@ -36,14 +29,12 @@ func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile
 //Creates a new persistant store
 func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) *PersistantStore {
 	logrus.Info("New persistant storage initialized")
-	index, _ := os.Create(indexFile)
 	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
 	store := &PersistantStore{
 		dimension:   dimension,
-		index:       make(map[string]uint32),
 		size:        uint32(0),
-		indexFile:   index,
 		vectorsFile: vectors,
+		keys:        make(map[string]bool),
 		seachIndex:  nil}
 
 	store.seachIndex = NewIndex(vectors, store)
@@ -53,25 +44,22 @@ func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchin
 //Loads an existing store
 func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFiles string) *PersistantStore {
 	logrus.Info("Loading existant persistance storage")
-	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
 	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
-	scanner := bufio.NewScanner(index)
-	posIndex := make(map[string]uint32)        //id to pos index
-	inversePosIndex := make(map[uint32]string) //pos to id index
+	iter := vectors.NewIterator(nil, nil)
 	counter := uint32(0)
-	for scanner.Scan() {
-		name := scanner.Text()
-		posIndex[name] = counter
-		inversePosIndex[counter] = name
+	keys := make(map[string]bool)
+	for iter.Next() {
+		// Remember that the contents of the returned slice should not be modified, and
+		// only valid until the next call to Next.
+		keys[string(iter.Key())] = true
 		counter++
 	}
-
+	iter.Release()
 	logrus.Info("Done!") //for each line in the id's list - map it to it's position
 	store := &PersistantStore{
 		dimension:   dimension,
-		index:       posIndex,
 		size:        counter,
-		indexFile:   index,
+		keys:        keys,
 		seachIndex:  nil,
 		vectorsFile: vectors}
 
@@ -81,18 +69,12 @@ func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFi
 
 func (s *PersistantStore) Set(id string, vector Vector) error {
 
-	persistant := &PersistantVector{ID: vector.Name(), pos: 0, store: s}
-	if pos, ok := s.index[id]; ok { //if this id is indexed
-		persistant.pos = pos
+	persistant := &PersistantVector{ID: vector.Name(), store: s}
+	if _, ok := s.keys[id]; ok { //if this id is indexed
 		s.WriteVector(vector.Values(), vector.Name())
 	} else {
-		persistant.pos = s.size
 		s.WriteVector(vector.Values(), vector.Name())
-		_, err := s.indexFile.WriteString(id + "\n")
-		if err != nil {
-			return err
-		}
-		s.index[id] = s.size //create pos index for id
+		s.keys[id] = true
 		s.seachIndex.maxlen = 2 * int(math.Sqrt(float64(s.size)))
 		s.seachIndex.AddVector(persistant)
 		s.size++ //increment size of store

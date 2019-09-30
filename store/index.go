@@ -50,7 +50,7 @@ func LoadIndex(db *leveldb.DB, s *PersistantStore) *Index {
 		leafID := string(iter.Key())[2:]
 		branchID := string(iter.Value())[2:]
 
-		leaf = &PersistantVector{ID: leafID, pos: 0, store: s}
+		leaf = &PersistantVector{ID: leafID, store: s}
 		branchPos, ok := branchesMap[branchID]
 		if ok {
 			branchesArr[branchPos].leafs = append(branchesArr[branchPos].leafs, leaf)
