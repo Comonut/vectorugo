@@ -6,5 +6,4 @@ RUN go get -d -v
 RUN CGO_ENABLED=0 go build -o /go/bin/main
 FROM scratch
 COPY --from=builder /go/bin/main /go/bin/main
-CMD ["ls","/go/bin"]
 ENTRYPOINT ["/go/bin/main"]
