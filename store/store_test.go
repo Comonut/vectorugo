@@ -72,7 +72,7 @@ func TestPersistantStore(t *testing.T) {
 	s, _ := NewPersitantStore(uint32(32), "index.test", "vectors.test", "search.test")
 	testStore(s, t)
 	os.Remove("index.test")
-	os.Remove("vectors.test")
+	os.RemoveAll("vectors.test")
 	os.Remove("search.test")
 }
 
@@ -85,6 +85,8 @@ func TestPersistantStoreSerialization(t *testing.T) {
 	if set(s, ones.ID, ones) != nil || set(s, zeros.ID, zeros) != nil || set(s, random.ID, random) != nil {
 		t.Error("error setting values")
 	}
+	s.vectorsFile.Close()
+	s = nil
 
 	l := LoadPersistantStore(uint32(32), "index.test", "vectors.test", "search.test")
 
@@ -94,6 +96,6 @@ func TestPersistantStoreSerialization(t *testing.T) {
 	}
 
 	os.Remove("index.test")
-	os.Remove("vectors.test")
+	os.RemoveAll("vectors.test")
 	os.Remove("search.test")
 }

@@ -1,93 +1,80 @@
 package store
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
 	"sort"
+
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 
 	"github.com/sirupsen/logrus"
 )
+
+const mask = "@@"
 
 type Index struct {
 	maxlen   int
 	size     int64
 	branches []*branch
-	file     *os.File
+	db       *leveldb.DB
 }
 
 type branch struct {
 	pos   Vector
-	id    uint32
+	id    string
 	leafs []Vector
 }
 
-func NewIndex(file *os.File, store Store) *Index {
-	if file != nil {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: file}
+func NewIndex(db *leveldb.DB, store Store) *Index {
+	if db != nil {
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), db: db}
 	} else {
-		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), file: nil}
+		return &Index{maxlen: 2, size: 0, branches: make([]*branch, 0), db: nil}
 	}
 }
-func LoadIndex(file *os.File, inversePosIndex map[uint32]string, s *PersistantStore) *Index {
+func LoadIndex(db *leveldb.DB, s *PersistantStore) *Index {
 	branchesArr := make([]*branch, 0)
-	branchesMap := make(map[uint32]int)
-	var leafPosBytes = make([]byte, 4)
-	var branchPosBytes = make([]byte, 4)
-
-	var leafPos uint32
-	var branchPos uint32
+	branchesMap := make(map[string]int)
 
 	var leaf Vector
+	var branchCache *MemoryVector
+	var arrCache []float64
 
-	var err error
+	size := int64(0)
 
-	for i := 0; i < len(inversePosIndex); i++ {
-		_, err = file.ReadAt(leafPosBytes, int64(i*8))
-		if err != nil {
-			logrus.Error("error loading index leaf")
-			panic(err)
-		}
-		_, err = file.ReadAt(branchPosBytes, int64(i*8+4))
-		if err != nil {
-			logrus.Error("error loading index branch")
-			panic(err)
-		}
+	iter := db.NewIterator(util.BytesPrefix([]byte("@@")), nil)
+	for iter.Next() {
+		// Use key/value.
+		size++
+		leafID := string(iter.Key())[2:]
+		branchID := string(iter.Value())[2:]
 
-		leafPos = binary.LittleEndian.Uint32(leafPosBytes)
-		branchPos = binary.LittleEndian.Uint32(branchPosBytes)
-
-		leaf = &PersistantVector{inversePosIndex[leafPos], leafPos, s}
-
-		branchID, ok := branchesMap[branchPos]
-
+		leaf = &PersistantVector{ID: leafID, store: s}
+		branchPos, ok := branchesMap[branchID]
 		if ok {
-			branchesArr[branchID].leafs = append(branchesArr[branchID].leafs, leaf)
+			branchesArr[branchPos].leafs = append(branchesArr[branchPos].leafs, leaf)
 		} else {
-			branchesMap[branchPos] = len(branchesArr)
-			branchesArr = append(branchesArr, &branch{pos: &MemoryVector{ID: inversePosIndex[branchPos], Array: s.ReadAtPos(branchPos)}, id: branchPos, leafs: []Vector{leaf}})
+			branchesMap[branchID] = len(branchesArr)
+			arrCache, _ = s.ReadVector(branchID)
+			branchCache = &MemoryVector{ID: branchID, Array: arrCache}
+			branchesArr = append(branchesArr, &branch{pos: branchCache, id: branchID, leafs: []Vector{leaf}})
 		}
 	}
 
-	return &Index{maxlen: int(2 * (math.Sqrt(float64(len(inversePosIndex))))), size: int64(len(inversePosIndex)), branches: branchesArr, file: file}
+	iter.Release()
+	return &Index{maxlen: int(2 * (math.Sqrt(float64(size)))), size: size, branches: branchesArr, db: db}
 
 }
 
 func (index *Index) writeLeafToFile(leaf Vector, branch *branch) {
-	if index.file == nil {
+	if index.db == nil {
 		return
 	}
-	leafPv := leaf.(*PersistantVector)
+	leafBytes := append([]byte(mask), []byte(leaf.Name())...)
+	branchBytes := append([]byte(mask), []byte(branch.pos.Name())...)
 
-	leafBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(leafBytes, leafPv.pos)
-	branchBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(branchBytes, branch.id)
-
-	allBytes := append(leafBytes, branchBytes...)
-
-	_, err := index.file.WriteAt(allBytes, int64(leafPv.pos)*8)
+	err := index.db.Put(leafBytes, branchBytes, nil)
 	if err != nil {
 		logrus.Error("error writing index changes to file")
 		panic(err)
@@ -115,11 +102,9 @@ func (index *Index) transfer(old, new *branch) {
 
 func (index *Index) AddVector(v Vector) {
 	if len(index.branches) == 0 {
-		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}}
 		index.branches = append(index.branches, new)
-		if index.file != nil {
-			pv := v.(*PersistantVector)
-			index.branches[len(index.branches)-1].id = pv.pos
+		if index.db != nil {
 			index.writeLeafToFile(v, new)
 		}
 		index.size++
@@ -137,17 +122,15 @@ func (index *Index) AddVector(v Vector) {
 	}
 
 	if len(closest.leafs) == index.maxlen {
-		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, id: 0, leafs: []Vector{v}}
+		new := &branch{pos: &MemoryVector{ID: v.Name(), Array: *v.Values()}, leafs: []Vector{v}}
 		index.branches = append(index.branches, new)
-		if index.file != nil {
-			pv := v.(*PersistantVector)
-			index.branches[len(index.branches)-1].id = pv.pos
+		if index.db != nil {
 			index.writeLeafToFile(v, new)
 		}
 		index.transfer(closest, index.branches[len(index.branches)-1])
 	} else {
 		closest.leafs = append(closest.leafs, v)
-		if index.file != nil {
+		if index.db != nil {
 			index.writeLeafToFile(v, closest)
 		}
 	}

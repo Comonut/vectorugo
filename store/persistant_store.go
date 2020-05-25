@@ -1,33 +1,26 @@
 package store
 
 import (
-	"bufio"
-	"fmt"
 	"math"
 	"os"
-	"sort"
 
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type PersistantStore struct {
-	dimension   uint32            //size of vectors
-	index       map[string]uint32 //maps id's to positions in the file
-	size        uint32            //number of vectors inside
+	dimension   uint32 //size of vectors
+	size        uint32 //number of vectors inside
+	keys        map[string]bool
 	seachIndex  *Index
-	indexFile   *os.File //file that contains the mapping from id to position in vectors file
-	vectorsFile *os.File //vectors file (see encodings.go)
+	vectorsFile *leveldb.DB //vectors file (see encodings.go)
 }
 
 func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) (*PersistantStore, error) {
-	_, err1 := os.Stat(indexFile)
-	_, err2 := os.Stat(indexFile)
-
+	_, err1 := os.Stat(vectorsFile)
 	// If index doesn't exist
-	if os.IsNotExist(err1) && os.IsNotExist(err2) {
+	if os.IsNotExist(err1) {
 		return ConstructPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
-	} else if os.IsNotExist(err1) || os.IsNotExist(err2) { //If one of the two files exists - something is wrong
-		return nil, fmt.Errorf("Index or vectors file exists, but other one doesn't")
 	} else { //if they don't exist create a new storage
 		return LoadPersistantStore(dimension, indexFile, vectorsFile, searchindexFile), nil
 	}
@@ -36,65 +29,52 @@ func NewPersitantStore(dimension uint32, indexFile, vectorsFile, searchindexFile
 //Creates a new persistant store
 func ConstructPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFile string) *PersistantStore {
 	logrus.Info("New persistant storage initialized")
-	index, _ := os.Create(indexFile)
-	vectors, _ := os.Create(vectorsFile)
-	search, _ := os.Create(searchindexFile)
+	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
 	store := &PersistantStore{
 		dimension:   dimension,
-		index:       make(map[string]uint32),
 		size:        uint32(0),
-		indexFile:   index,
 		vectorsFile: vectors,
+		keys:        make(map[string]bool),
 		seachIndex:  nil}
 
-	store.seachIndex = NewIndex(search, store)
+	store.seachIndex = NewIndex(vectors, store)
 	return store
 }
 
 //Loads an existing store
 func LoadPersistantStore(dimension uint32, indexFile, vectorsFile, searchindexFiles string) *PersistantStore {
 	logrus.Info("Loading existant persistance storage")
-	index, _ := os.OpenFile(indexFile, os.O_RDWR|os.O_CREATE, 0755)
-	vectors, _ := os.OpenFile(vectorsFile, os.O_RDWR|os.O_CREATE, 0755)
-	search, _ := os.OpenFile(searchindexFiles, os.O_RDWR|os.O_CREATE, 0755)
-	scanner := bufio.NewScanner(index)
-	posIndex := make(map[string]uint32)        //id to pos index
-	inversePosIndex := make(map[uint32]string) //id to pos index
+	vectors, _ := leveldb.OpenFile(vectorsFile, nil)
+	iter := vectors.NewIterator(nil, nil)
 	counter := uint32(0)
-	for scanner.Scan() {
-		name := scanner.Text()
-		posIndex[name] = counter
-		inversePosIndex[counter] = name
+	keys := make(map[string]bool)
+	for iter.Next() {
+		// Remember that the contents of the returned slice should not be modified, and
+		// only valid until the next call to Next.
+		keys[string(iter.Key())] = true
 		counter++
 	}
-
+	iter.Release()
 	logrus.Info("Done!") //for each line in the id's list - map it to it's position
 	store := &PersistantStore{
 		dimension:   dimension,
-		index:       posIndex,
 		size:        counter,
-		indexFile:   index,
+		keys:        keys,
 		seachIndex:  nil,
 		vectorsFile: vectors}
 
-	store.seachIndex = LoadIndex(search, inversePosIndex, store)
+	store.seachIndex = LoadIndex(vectors, store)
 	return store
 }
 
 func (s *PersistantStore) Set(id string, vector Vector) error {
 
-	persistant := &PersistantVector{ID: vector.Name(), pos: 0, store: s}
-	if pos, ok := s.index[id]; ok { //if this id is indexed
-		persistant.pos = pos
-		s.WriteAtPos(*vector.Values(), pos) //write at vector's position in file
+	persistant := &PersistantVector{ID: vector.Name(), store: s}
+	if _, ok := s.keys[id]; ok { //if this id is indexed
+		s.WriteVector(vector.Values(), vector.Name())
 	} else {
-		persistant.pos = s.size
-		s.WriteAtPos(*vector.Values(), s.size)       //if it doesn't exist, write at end of vector's file
-		_, err := s.indexFile.WriteString(id + "\n") //add it to list of ids
-		if err != nil {
-			return err
-		}
-		s.index[id] = s.size //create pos index for id
+		s.WriteVector(vector.Values(), vector.Name())
+		s.keys[id] = true
 		s.seachIndex.maxlen = 2 * int(math.Sqrt(float64(s.size)))
 		s.seachIndex.AddVector(persistant)
 		s.size++ //increment size of store
@@ -104,51 +84,19 @@ func (s *PersistantStore) Set(id string, vector Vector) error {
 }
 
 func (s *PersistantStore) Get(id string) (Vector, error) {
-	pos, ok := s.index[id]
-	if !ok {
-		return nil, fmt.Errorf("value not present")
-	}
 
+	values, err := s.ReadVector(id)
+
+	if err != nil {
+		return nil, err
+	}
 	return &MemoryVector{
 		ID:    id,
-		Array: s.ReadAtPos(pos)}, nil
-}
-
-type idPosPair struct {
-	id  string
-	pos uint32
+		Array: values}, nil
 }
 
 func (s *PersistantStore) Delete(id string) error {
-	positionsArr := make([]idPosPair, len(s.index))
-	counter := 0
-	for k, v := range s.index {
-		positionsArr[counter] = idPosPair{id: k, pos: v}
-		counter++
-	}
-	sort.Slice(positionsArr, func(i, j int) bool {
-		return positionsArr[i].pos < positionsArr[j].pos
-	})
-	last := positionsArr[len(positionsArr)-1]
-	positionsArr[s.index[id]] = last
-	s.index[last.id] = s.index[id]
-	delete(s.index, id)
-	s.WriteAtPos(s.ReadAtPos(last.pos), s.index[last.id])
-	s.size--
-	err := s.vectorsFile.Truncate(int64(s.size * s.dimension * 8))
-	if err != nil {
-		panic(fmt.Errorf("error shrinking vectors file"))
-	}
-	index := s.indexFile.Name()
-	os.Remove(index)
-	s.indexFile, _ = os.Create(index)
-	for _, k := range positionsArr[:s.size] {
-		_, err = s.indexFile.WriteString(k.id + "\n")
-		if err != nil {
-			panic(fmt.Errorf("error updating index file"))
-		}
-	}
-	return nil
+	return s.vectorsFile.Delete([]byte(id), nil)
 }
 
 func (s *PersistantStore) KNN(vector Vector, k int) (*[]Distance, error) {
